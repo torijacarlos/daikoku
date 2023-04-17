@@ -3,7 +3,7 @@ use sqlx::{MySql, Pool};
 
 use crate::{alias::DaikokuResult, error::DaikokuError};
 
-use super::{Account, AccountType};
+use super::{Account, AccountType, get_account_balance};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -50,11 +50,12 @@ impl Wallet {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn net_worth(&self, pool: &Pool<MySql>) -> DaikokuResult<f32> {
-        let mut total = 0.0;
-        for acc in self.get_accounts(pool).await? {
-            total += &acc.balance(pool).await?;
-        }
-        Ok(total)
+}
+
+pub async fn get_accounts_net_worth(accounts: Vec<Account>, pool: &Pool<MySql>) -> DaikokuResult<f32> {
+    let mut total = 0.0;
+    for acc in accounts {
+        total += get_account_balance(&acc.acc_type, &acc.get_transactions(&pool).await?)?;
     }
+    Ok(total)
 }

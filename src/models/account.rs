@@ -100,18 +100,19 @@ impl Account {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn balance(&self, pool: &Pool<MySql>) -> DaikokuResult<f32> {
-        let mut total: f32 = 0.0;
-        let multiplier = match &self.acc_type {
-            AccountType::Asset | AccountType::Expense => 1.0,
-            _ => -1.0,
-        };
-        for trx in self.get_transactions(pool).await?.iter() {
-            match trx.trx_type {
-                TransactionType::Debit => total += trx.amount.to_f32().unwrap() * multiplier,
-                TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,
-            }
+}
+
+pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transaction>) -> DaikokuResult<f32> {
+    let mut total: f32 = 0.0;
+    let multiplier = match acc_type {
+        AccountType::Asset | AccountType::Expense => 1.0,
+        _ => -1.0,
+    };
+    for trx in transactions.iter() {
+        match trx.trx_type {
+            TransactionType::Debit => total += trx.amount.to_f32().unwrap() * multiplier,
+            TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,
         }
-        Ok(total)
     }
+    Ok(total)
 }

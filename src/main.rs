@@ -20,41 +20,13 @@ struct Daikoku {
 
 impl Daikoku {
     fn new() -> Self {
+        let settings = Arc::new(Settings::load().unwrap());
         Self {
             wallet: DaikokuThreadData::empty(),
-            settings: Arc::new(Settings::load().unwrap()),
+            settings,
             frame: 0,
         }
     }
-}
-
-fn load_wallet(app: &Daikoku) {
-    let wallet_ref = app.wallet.clone();
-    let set_ref = app.settings.clone();
-    tokio::spawn(async move {
-        if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
-            let result = Wallet::get(1, pool).await;
-            if let Ok(mut mutex_lock) = wallet_ref.write() {
-                *mutex_lock = result.ok();
-            }
-        }
-    });
-}
-
-fn render_wallet(app: &Daikoku, ui: &mut egui::Ui) {
-    app.wallet.get(|w: Option<&Wallet>| {
-        if let Some(w) = w {
-            ui.label(format!("Wallet '{}'", w.id));
-        }
-    });
-}
-
-fn render_net_worth(app: &Daikoku, ui: &mut egui::Ui) {
-    app.wallet.get(|w: Option<&Wallet>| {
-        if let Some(w) = w {
-            ui.label(format!("Wallet '{}'", w.id));
-        }
-    });
 }
 
 #[tokio::main]
@@ -67,22 +39,18 @@ async fn main() -> DaikokuResult<()> {
     .map_err(DaikokuError::RenderError)
 }
 
-// (torijacarlos:todo) explore available ui elements
 impl eframe::App for Daikoku {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Daikoku");
             ui.label(format!("Frame '{}'", self.frame));
-
-            {
-                // load data
-                load_wallet(&self);
-            }
-            {
-                // render data
-                render_wallet(self, ui);
-                render_net_worth(self, ui);
-            }
+            // prepare application
+            // @todo: prepare database pool
+            // load data
+            // render data
+            self.wallet.get(|w: &Wallet| {
+                ui.label(format!("Wallet '{}'", w.id));
+            });
             self.frame += 1;
         });
     }
