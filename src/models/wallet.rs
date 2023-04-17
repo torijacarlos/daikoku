@@ -91,3 +91,8 @@ pub fn get_accounts_net_worth(accounts: &Vec<Account>) -> f32 {
     }
     total
 }
+
+pub fn get_wallet_liquidity_index(accounts: &Vec<Account>) -> f32 {
+    // @todo: liq-index: (assets + expense) / (liabilities + equity + income)
+    todo!();
+}

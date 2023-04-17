@@ -7,6 +7,8 @@ use crate::Dkk;
 
 pub enum DkkUiState {
     Init,
+    // @todo: Wallet view should show liq index and kpis like my drive file instead of the account
+    // and transaction details
     WalletView,
     AccountView,
     TransactionView,

@@ -64,7 +64,10 @@ impl Account {
     }
 }
 
+
 pub fn get_account_balance(acc: &Account) -> f32 {
+    // @todo: from-balance-date: Get the account balance with the balance column
+    // and transaction that are after the balance_date
     let mut total: f32 = 0.0;
     let multiplier = match acc.acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
