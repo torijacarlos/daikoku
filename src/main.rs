@@ -31,6 +31,17 @@ impl Daikoku {
     }
 }
 
+fn load_wallet(app: &Daikoku) {
+    let wallet_ref = app.wallet.clone();
+    let pool_ref = app.pool.clone();
+    tokio::spawn(async move {
+        let wallet = Wallet::get(1, &pool_ref).await.ok();
+        if let Ok(mut wallet_guard) = wallet_ref.lock() {
+            *wallet_guard = wallet;
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() -> DaikokuResult<()> {
     eframe::run_native(
@@ -48,12 +59,15 @@ impl eframe::App for Daikoku {
             ui.label(format!("Frame '{}'", self.frame));
 
             // load data
+            load_wallet(&self);
+
             // render data
             self.wallet.get(|w: Option<&Wallet>| {
                 if let Some(w) = w {
                     ui.label(format!("Wallet '{}'", w.id));
                 }
             });
+
             self.frame += 1;
             self.frame %= 60;
         });
