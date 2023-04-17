@@ -1,11 +1,11 @@
 use egui::RichText;
 
 use crate::{
-    models::{get_accounts_net_worth, get_wallet_liquidity_index, Account},
+    models::{get_accounts_net_worth, get_wallet_liquidity_index, Account, Transaction},
     storage, Dkk,
 };
 
-use super::{render_account::render_account, DkkUiState};
+use super::{render_account::render_account, render_transaction::render_transaction, DkkUiState};
 
 pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
     if let Some(ref mut wallet) = app.wallet {
@@ -53,20 +53,23 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                 }
                                 render_account(ui, acc, acc.id == app.working_account_id);
 
-                                for t in &acc.transactions {
+                                for t in acc.transactions.iter_mut() {
                                     ui.group(|ui| {
-                                        ui.label(format!("Amount: {:?}", t.amount));
-                                        ui.label(format!("Date: {:?}", t.execution_date));
-                                        ui.label(format!("Trx Type: {:?}", t.trx_type));
                                         if ui.button("Edit transaction").clicked() {
-                                            app.state = DkkUiState::TransactionView;
-                                            // @todo: mutable reference to transaction
+                                            app.working_transaction_id = t.id;
                                         }
+                                        render_transaction(
+                                            ui,
+                                            t,
+                                            t.id == app.working_transaction_id,
+                                        );
                                     });
                                 }
                                 ui.group(|ui| {
                                     if ui.button("Create transaction").clicked() {
-                                        app.state = DkkUiState::TransactionView;
+                                        let t = Transaction::new();
+                                        acc.transactions.push(t.clone());
+                                        app.working_transaction_id = t.id;
                                     }
                                 });
                             });

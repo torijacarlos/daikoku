@@ -26,7 +26,7 @@ pub struct Dkk {
     pub crypt_key: String,
 
     pub working_account_id: Option<Uuid>,
-    pub working_transaction: Option<Transaction>,
+    pub working_transaction_id: Option<Uuid>,
 
     pub force_reload: bool,
     pub fps: f32,
@@ -45,7 +45,7 @@ impl Dkk {
             available_wallets: storage::get_all_wallets_locations(),
             working_alias: String::new(),
             working_account_id: None,
-            working_transaction: None,
+            working_transaction_id: None,
             crypt_key: settings.crypt_key,
             force_reload: false,
             fps: 0.0,

@@ -15,8 +15,3 @@ async fn main() -> DkkResult<()> {
 
 // @todo: figure out what to do with ui, I don't want to invest a lot on it for now, but I think
 // the next steps require some sort of polish. take notes on each scene and act on that maybe
-//
-//
-// @todo: handle creation and edition of everything
-// This new stage is showing that maybe I don't event need the UI States
-// Or, how I handle them should be completely different
