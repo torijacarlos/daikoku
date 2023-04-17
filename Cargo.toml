@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.24"
 config = "0.13.3"
+num-traits = "0.2.15"
 secrecy = { version = "0.8.0", features = [ "serde" ] }
 serde = { version = "1.0.159", features = [ "derive" ] }
-sqlx = { version = "0.6.3", default-features=false, features=["runtime-tokio-rustls", "macros", "mysql", "chrono", "migrate", "offline"] }
+sqlx = { version = "0.6.3", default-features=false, features=["runtime-tokio-rustls", "macros", "mysql", "chrono", "migrate", "bigdecimal", "offline"] }
 tokio = { version="1.27.0", features=["macros", "rt-multi-thread"] }

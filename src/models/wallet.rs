@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
-use super::Account;
+use super::{Account, AccountType};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -29,15 +29,26 @@ impl Wallet {
         .await
     }
 
-    pub fn get_accounts(&self, _pool: &mut Pool<MySql>) -> Vec<Account> {
-        todo!();
+    pub async fn get_accounts(&self, pool: &mut Pool<MySql>) -> Result<Vec<Account>, sqlx::Error> {
+        sqlx::query_as!(
+            Account,
+            r#"SELECT  
+            a.id, name, wallet_id, created_date, updated_date, lu.value as "acc_type: AccountType"
+            FROM ACCOUNT a
+            JOIN LU_ACCOUNT_TYPE lu 
+            ON a.type_id = lu.id
+            WHERE wallet_id = ?"#,
+            self.id
+        )
+        .fetch_all(&mut pool.acquire().await?)
+        .await
     }
 
-    pub fn net_worth(&self, pool: &mut Pool<MySql>) -> f32 {
+    pub async fn net_worth(&self, pool: &mut Pool<MySql>) -> Result<f32, sqlx::Error> {
         let mut total = 0.0;
-        for acc in &self.get_accounts(pool) {
-            total += acc.balance(pool);
+        for acc in self.get_accounts(pool).await? {
+            total += &acc.balance(pool).await?;
         }
-        total
+        Ok(total)
     }
 }

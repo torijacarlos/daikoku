@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
 use super::{AccountType, Transaction, TransactionType};
+use num_traits::cast::ToPrimitive;
 
 #[derive(Debug)]
 pub struct Account {
@@ -39,10 +40,11 @@ impl Account {
     }
 
     pub async fn get(id: u32, pool: &mut Pool<MySql>) -> Result<Self, sqlx::Error> {
-        let result = sqlx::query!(
+        sqlx::query_as!(
+            Self,
             r#"
             SELECT 
-            a.id, name, wallet_id, created_date, updated_date, lu.value as acc_type
+            a.id, name, wallet_id, created_date, updated_date, lu.value as "acc_type: AccountType"
             FROM ACCOUNT a 
             JOIN LU_ACCOUNT_TYPE lu 
             ON a.type_id = lu.id
@@ -50,41 +52,62 @@ impl Account {
             id
         )
         .fetch_one(&mut pool.acquire().await?)
+        .await
+    }
+
+    pub async fn save(&self, pool: &mut Pool<MySql>) -> Result<(), sqlx::Error> {
+        let acc_type = sqlx::query!(
+            "select id from LU_ACCOUNT_TYPE where value=?",
+            self.acc_type.as_str()
+        )
+        .fetch_one(&mut pool.acquire().await?)
         .await?;
 
-        Ok(Self {
-            id: result.id,
-            wallet_id: result.wallet_id,
-            name: result.name,
-            acc_type: match TryInto::<AccountType>::try_into(result.acc_type) {
-                Ok(v) => v,
-                Err(_) => return Err(sqlx::Error::RowNotFound),
-            },
-            created_date: result.created_date,
-            updated_date: result.updated_date,
-        })
+        sqlx::query!(
+            r#"
+            UPDATE ACCOUNT 
+            SET name = ?, type_id = ?
+            WHERE id = ?"#,
+            self.name,
+            acc_type.id,
+            self.id
+        )
+        .execute(&mut pool.acquire().await?)
+        .await?;
+
+        Ok(())
     }
 
-    pub fn save(&self, _pool: &mut Pool<MySql>) -> Result<(), sqlx::Error> {
-        todo!()
+    pub async fn get_transactions(
+        &self,
+        pool: &mut Pool<MySql>,
+    ) -> Result<Vec<Transaction>, sqlx::Error> {
+        sqlx::query_as!(
+            Transaction,
+            r#"SELECT  
+            t.id, amount, execution_date, lu.value as "trx_type: TransactionType", account_id
+            FROM TRANSACTION t
+            JOIN LU_TRANSACTION_TYPE lu 
+            ON t.type_id = lu.id
+            WHERE account_id = ?"#,
+            self.id
+        )
+        .fetch_all(&mut pool.acquire().await?)
+        .await
     }
 
-    pub fn get_transactions(&self, _pool: &mut Pool<MySql>) -> Vec<Transaction> {
-        todo!()
-    }
-
-    pub fn balance(&self, pool: &mut Pool<MySql>) -> f32 {
+    pub async fn balance(&self, pool: &mut Pool<MySql>) -> Result<f32, sqlx::Error> {
         let mut total: f32 = 0.0;
         let multiplier = match &self.acc_type {
             AccountType::Asset | AccountType::Expense => 1.0,
             _ => -1.0,
         };
-        for trx in &self.get_transactions(pool) {
+        for trx in self.get_transactions(pool).await?.iter() {
             match trx.trx_type {
-                TransactionType::Debit => total += trx.amount * multiplier,
-                TransactionType::Credit => total -= trx.amount * multiplier,
+                TransactionType::Debit => total += trx.amount.to_f32().unwrap() * multiplier,
+                TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,
             }
         }
-        total
+        Ok(total)
     }
 }

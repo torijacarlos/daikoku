@@ -1,3 +1,5 @@
+use sqlx::{database::HasValueRef, Database, Decode};
+
 #[derive(Debug)]
 pub enum AccountType {
     Asset,
@@ -16,6 +18,20 @@ impl AccountType {
             Self::Income => "Income",
             Self::Equity => "equity",
         }
+    }
+}
+
+impl<'r, D: Database> Decode<'r, D> for AccountType
+where
+    // we want to delegate some of the work to string decoding so let's make sure strings
+    // are supported by the database
+    &'r str: Decode<'r, D>,
+{
+    fn decode(
+        value: <D as HasValueRef<'r>>::ValueRef,
+    ) -> Result<AccountType, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let value = <&str as Decode<D>>::decode(value)?.to_string();
+        Ok(TryInto::<AccountType>::try_into(value)?)
     }
 }
 
@@ -41,6 +57,15 @@ pub enum TransactionType {
     Credit,
 }
 
+impl TransactionType {
+    pub fn as_str(&self) -> &'static str {
+        match &self {
+            Self::Debit => "Debit",
+            Self::Credit => "Credit",
+        }
+    }
+}
+
 impl TryFrom<String> for TransactionType {
     type Error = String;
 
@@ -51,5 +76,19 @@ impl TryFrom<String> for TransactionType {
             _ => return Err(format!("Unhandled Transaction type: {}", value)),
         };
         Ok(result)
+    }
+}
+
+impl<'r, D: Database> Decode<'r, D> for TransactionType
+where
+    // we want to delegate some of the work to string decoding so let's make sure strings
+    // are supported by the database
+    &'r str: Decode<'r, D>,
+{
+    fn decode(
+        value: <D as HasValueRef<'r>>::ValueRef,
+    ) -> Result<TransactionType, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let value = <&str as Decode<D>>::decode(value)?.to_string();
+        Ok(TryInto::<TransactionType>::try_into(value)?)
     }
 }
