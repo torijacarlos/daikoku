@@ -8,6 +8,10 @@ pub type ThreadData<T> = Arc<Mutex<Option<T>>>;
 pub struct DkkThreadData<T>(pub ThreadData<T>);
 
 impl<T> DkkThreadData<T> {
+    pub fn new(v: T) -> Self {
+        Self(Arc::new(Mutex::new(Some(v))))
+    }
+
     pub fn empty() -> Self {
         Self(Arc::new(Mutex::new(None)))
     }

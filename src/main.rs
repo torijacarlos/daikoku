@@ -11,8 +11,8 @@ use eframe::egui;
 use egui::RichText;
 use error::DkkError;
 use models::{
-    get_account_transactions, get_accounts_net_worth, get_wallet_accounts, Account, Transaction,
-    TransactionType,
+    get_account_balance, get_account_transactions, get_accounts_net_worth, get_wallet_accounts,
+    Account, Transaction, TransactionType,
 };
 use sqlx::{MySql, Pool};
 
@@ -26,9 +26,17 @@ enum DkkState {
     CreateTransaction,
 }
 
+#[derive(Default, Clone)]
+struct CreateTransaction {
+    amount_str: String,
+    trx_type: TransactionType,
+    account_id: u32,
+}
+
 struct Dkk {
     wallet: DkkThreadData<Wallet>,
 
+    create_transaction: CreateTransaction,
     pool: Arc<Pool<MySql>>,
 
     force_reload: bool,
@@ -36,9 +44,6 @@ struct Dkk {
     frame: u128,
     frame_time: Instant,
     state: DkkState,
-    amount_str: String,
-    trx_type: TransactionType,
-    account_id: u32,
 }
 
 impl Dkk {
@@ -46,15 +51,13 @@ impl Dkk {
         let settings = Settings::load().unwrap();
         Self {
             wallet: DkkThreadData::empty(),
+            create_transaction: CreateTransaction::default(),
             pool: Arc::new(settings.get_db_conn_pool()),
             force_reload: false,
             fps: 0.0,
             frame: 0,
             state: DkkState::Wallet,
             frame_time: Instant::now(),
-            amount_str: String::new(),
-            trx_type: TransactionType::Debit,
-            account_id: 0,
         }
     }
 }
@@ -104,56 +107,67 @@ impl eframe::App for Dkk {
                 ui.label(format!("fps: {:?}", self.fps));
             });
 
-            // render state/scene
-            match self.state {
-                DkkState::Wallet => render_wallet(ui, self),
-                DkkState::CreateTransaction => render_create_transaction(ui, self),
-            };
-
-            // handle input
+            render(ui, self);
             handle_input(ui, self);
         });
 
         let wallet_id = 1;
-        let seconds = 2;
-        self.frame += 1;
-        if self.frame_time.elapsed() > Duration::new(seconds, 0) {
-            self.fps = self.frame as f32 / (seconds as f32);
-            self.frame = 0;
-            self.frame_time = Instant::now();
-            self.force_reload = true;
-        }
-
         load_wallet(self, wallet_id);
+        update_fps(self);
         ctx.request_repaint();
     }
+}
+
+fn update_fps(app: &mut Dkk) {
+    let seconds = 2;
+    app.frame += 1;
+    if app.frame_time.elapsed() > Duration::new(seconds, 0) {
+        app.fps = app.frame as f32 / (seconds as f32);
+        app.frame = 0;
+        app.frame_time = Instant::now();
+        app.force_reload = true;
+    }
+}
+
+fn render(ui: &mut egui::Ui, app: &mut Dkk) {
+    match app.state {
+        DkkState::Wallet => render_wallet(ui, app),
+        DkkState::CreateTransaction => render_create_transaction(ui, app),
+    };
 }
 
 fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
             "Creating Transaction for account: {}",
-            app.account_id
+            app.create_transaction.account_id
         ));
     });
-
     ui.group(|ui| {
         ui.horizontal(|ui| {
             let label = ui.label("Amount: ".to_string());
-            let prev_value = app.amount_str.clone();
-            ui.text_edit_singleline(&mut app.amount_str)
+            let prev_value = app.create_transaction.amount_str.clone();
+            ui.text_edit_singleline(&mut app.create_transaction.amount_str)
                 .labelled_by(label.id);
-            if app.amount_str.parse::<f32>().is_err() {
-                app.amount_str = prev_value;
+            if app.create_transaction.amount_str.parse::<f32>().is_err() {
+                app.create_transaction.amount_str = prev_value;
             }
         });
         ui.horizontal(|ui| {
             let label = ui.label("Type: ".to_string());
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", app.trx_type))
+                .selected_text(format!("{:?}", app.create_transaction.trx_type))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut app.trx_type, TransactionType::Debit, "Debit");
-                    ui.selectable_value(&mut app.trx_type, TransactionType::Credit, "Credit");
+                    ui.selectable_value(
+                        &mut app.create_transaction.trx_type,
+                        TransactionType::Debit,
+                        "Debit",
+                    );
+                    ui.selectable_value(
+                        &mut app.create_transaction.trx_type,
+                        TransactionType::Credit,
+                        "Credit",
+                    );
                 })
                 .response
                 .labelled_by(label.id);
@@ -161,12 +175,18 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
         ui.horizontal(|ui| {
             if ui.button("Create").clicked() {
                 app.state = DkkState::Wallet;
-                if let Ok(amount) = app.amount_str.parse::<f32>() {
-                    let pool_ref = app.pool.clone();
-                    let acc_id = app.account_id.clone();
-                    let trx_type = app.trx_type.clone();
+                let pool_ref = app.pool.clone();
+                if let Ok(amount) = app.create_transaction.amount_str.parse::<f32>() {
+                    let ct_copy = app.create_transaction.clone();
                     tokio::spawn(async move {
-                        match Transaction::create(acc_id, amount, trx_type, &pool_ref).await {
+                        match Transaction::create(
+                            ct_copy.account_id,
+                            amount,
+                            ct_copy.trx_type,
+                            &pool_ref,
+                        )
+                        .await
+                        {
                             Ok(_) => {}
                             Err(e) => {
                                 todo!("unhandled error: {:?}", e)
@@ -201,11 +221,20 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                         for acc in accounts {
                             ui.group(|ui| {
                                 ui.vertical(|ui| {
-                                    ui.label(format!("Account Id: {}", acc.id));
-                                    ui.label(format!("Account type: {:?}", acc.acc_type));
+                                    ui.label(format!("Id: {}", acc.id));
+                                    ui.label(format!("Name: {}", acc.name));
+                                    ui.label(format!("Type: {:?}", acc.acc_type));
                                     ui.label(format!(
                                         "Account Created date: {:?}",
                                         acc.created_date
+                                    ));
+                                    ui.label(format!(
+                                        "Balance: {:?}",
+                                        if let Some(transactions) = wallet.accounts.get(acc) {
+                                            get_account_balance(&acc.acc_type, transactions)
+                                        } else {
+                                            0.0
+                                        }
                                     ));
                                     if let Some(transactions) = wallet.accounts.get(acc) {
                                         for t in transactions {
@@ -218,7 +247,10 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         ui.group(|ui| {
                                             if ui.button("Create transaction").clicked() {
                                                 app.state = DkkState::CreateTransaction;
-                                                app.account_id = acc.id;
+                                                app.create_transaction = CreateTransaction {
+                                                    account_id: acc.id,
+                                                    ..Default::default()
+                                                };
                                             }
                                         });
                                     }
@@ -237,7 +269,6 @@ fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
         ui.input(|input| {
             if input.key_pressed(egui::Key::Escape) {
                 app.state = DkkState::Wallet;
-                println!("Esc pressed");
             }
         });
     };

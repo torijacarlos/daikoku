@@ -51,8 +51,9 @@ impl TryFrom<String> for AccountType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum TransactionType {
+    #[default]
     Debit,
     Credit,
 }
