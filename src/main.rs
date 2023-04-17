@@ -17,8 +17,6 @@ async fn main() -> DkkResult<()> {
 // the next steps require some sort of polish. take notes on each scene and act on that maybe
 //
 //
-// @todo: the past rabbit hole made me think, do I even need a database?
-// I'll try to make it an option. or should i delete the entire db implementation?
-// where and why would I need it? The file could get a bit big, but even if it gets to 1GB, I could
-// start splitting it into separate files
-// I struggled so much with the threading that it pains me to do so
+// @todo: handle creation and edition of everything
+// This new stage is showing that maybe I don't event need the UI States
+// Or, how I handle them should be completely different
