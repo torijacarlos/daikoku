@@ -1,68 +1,21 @@
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{types::BigDecimal, MySql, Pool};
-
-use crate::{alias::DkkResult, error::DkkError};
 
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Account {
-    // db data
-    pub id: Option<u32>,
-    pub created_date: Option<DateTime<Utc>>,
-    pub updated_date: Option<DateTime<Utc>>,
-
-    // data
-    pub wallet_id: u32,
     pub name: String,
     pub acc_type: AccountType,
 
     pub balance: BigDecimal,
     pub balance_date: DateTime<Utc>,
     pub transactions: Vec<Transaction>,
-}
 
-impl Account {
-    pub async fn upsert(&mut self, pool: &Pool<MySql>) -> DkkResult<()> {
-        let acc_type = sqlx::query!(
-            "SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?",
-            self.acc_type.as_str()
-        )
-        .fetch_one(&mut pool.acquire().await?)
-        .await?;
-        if self.id.is_some() {
-            sqlx::query!(
-                r#"
-                UPDATE ACCOUNT 
-                SET name = ?, type_id = ?, balance = ?, balance_date = ?
-                WHERE id = ?"#,
-                self.name,
-                acc_type.id,
-                self.balance,
-                self.balance_date,
-                self.id
-            )
-            .execute(&mut pool.acquire().await?)
-            .await?;
-        } else {
-            let result = sqlx::query!(
-                r#"INSERT INTO ACCOUNT 
-                (wallet_id, name, type_id, balance, balance_date) 
-                VALUES (?, ?, ?, ?, ?)"#,
-                self.wallet_id,
-                self.name,
-                acc_type.id,
-                self.balance,
-                self.balance_date,
-            )
-            .execute(&mut pool.acquire().await?)
-            .await?;
-            self.id = result.last_insert_id().try_into().ok();
-        }
-        Ok(())
-    }
+    pub created_date: Option<DateTime<Utc>>,
+    pub updated_date: Option<DateTime<Utc>>,
 }
 
 pub fn get_account_balance(acc: &Account) -> f32 {
@@ -82,23 +35,4 @@ pub fn get_account_balance(acc: &Account) -> f32 {
         }
     }
     total
-}
-
-pub async fn get_account_transactions(
-    account_id: u32,
-    pool: &Pool<MySql>,
-) -> DkkResult<Vec<Transaction>> {
-    sqlx::query_as!(
-        Transaction,
-        r#"SELECT  
-        t.id as "id?", amount, execution_date, lu.value as "trx_type: TransactionType", account_id
-        FROM TRANSACTION t
-        JOIN LU_TRANSACTION_TYPE lu 
-        ON t.type_id = lu.id
-        WHERE t.account_id = ?"#,
-        account_id
-    )
-    .fetch_all(&mut pool.acquire().await?)
-    .await
-    .map_err(DkkError::Database)
 }

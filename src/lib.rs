@@ -6,30 +6,26 @@ mod storage;
 mod ui;
 
 use std::{
-    sync::Arc,
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
-use alias::DkkThreadData;
 use egui::Align;
 use models::{Account, Transaction, Wallet};
 use settings::Settings;
-use sqlx::{MySql, Pool};
 use ui::{handle_input, render, DkkUiState};
 
 pub struct Dkk {
     pub pin: String,
-    pub wallet: DkkThreadData<Wallet>,
+    pub wallet: Option<Wallet>,
 
-    pub available_wallets: DkkThreadData<Vec<Wallet>>,
+    pub available_wallets: Vec<PathBuf>,
 
     pub working_alias: String,
-    pub working_wallet: Option<u32>,
-    pub working_account: Account,
-    pub working_transaction: Transaction,
-
     pub crypt_key: String,
-    pub pool: Arc<Pool<MySql>>,
+
+    pub working_account: Option<Account>,
+    pub working_transaction: Option<Transaction>,
 
     pub force_reload: bool,
     pub fps: f32,
@@ -43,15 +39,13 @@ impl Dkk {
         let settings = Settings::load().unwrap();
         Self {
             pin: String::new(),
-            wallet: DkkThreadData::empty(),
+            wallet: None,
             state: DkkUiState::Init,
-            available_wallets: DkkThreadData::empty(),
+            available_wallets: vec![],
             working_alias: String::new(),
-            working_wallet: None,
-            working_account: Account::default(),
-            working_transaction: Transaction::default(),
-            crypt_key: settings.crypt_key.clone(),
-            pool: Arc::new(settings.get_db_conn_pool()),
+            working_account: None,
+            working_transaction: None,
+            crypt_key: settings.crypt_key,
             force_reload: false,
             fps: 0.0,
             frame: 0,
