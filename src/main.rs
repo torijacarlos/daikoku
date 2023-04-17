@@ -7,23 +7,16 @@ use crate::settings::Settings;
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
     let settings = Settings::load().unwrap();
-    let mut conn = settings.get_db_conn().await?;
+    let mut pool = settings.get_db_conn_pool().await?;
 
-    let _results =
-        sqlx::query!(r#"SELECT id, username FROM WALLET where username = "torijacarlos""#)
-            .fetch_optional(&mut conn)
-            .await?;
+    let wallet = Wallet::create(&mut pool).await?;
 
-    let mut wallet = Wallet::new("torijacarlos");
-    //wallet.save();
-    //println!("{:#?}", wallet.id);
-    wallet.accounts = vec![
-        Account::new(0, "test-asset", AccountType::Asset),
-        Account::new(0, "test-liability", AccountType::Liability),
-    ];
+    println!("{:#?}", wallet);
 
-    println!("{}", u32::MAX);
-    for acc in wallet.accounts.iter_mut() {
+    let _ = Account::create(wallet.id, "test-asset".into(), AccountType::Asset);
+    let _ = Account::create(wallet.id, "test-liability".into(), AccountType::Liability);
+
+    for acc in wallet.get_accounts(&mut pool).iter_mut() {
         acc.transactions
             .push(Transaction::new(0, 1000.0, TransactionType::Debit));
         acc.transactions
@@ -32,7 +25,7 @@ async fn main() -> Result<(), sqlx::Error> {
             .push(Transaction::new(0, 500.0, TransactionType::Credit));
         println!("{}: {}", acc.name, acc.balance());
     }
-    println!("Wallet: {}", wallet.net_worth());
+    println!("Wallet: {}", wallet.net_worth(&mut pool));
 
     Ok(())
 }

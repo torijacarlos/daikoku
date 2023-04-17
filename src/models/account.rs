@@ -3,17 +3,18 @@ use chrono::{Utc, DateTime};
 use super::{AccountType, TransactionType, Transaction};
 
 #[derive(Debug)]
-pub struct Account<'a> {
+pub struct Account {
     pub id: Option<u32>,
     pub wallet_id: u32,
-    pub name: &'a str,
+    pub name: String,
     pub acc_type: AccountType,
     pub created_date: DateTime<Utc>,
     pub transactions: Vec<Transaction>,
 }
 
-impl<'a> Account<'a> {
-    pub fn new(wallet_id: u32, name: &'a str, acc_type: AccountType) -> Self {
+impl Account {
+    pub fn create(wallet_id: u32, name: String, acc_type: AccountType) -> Self {
+        // (torijacarlos:todo): Store immediately to database, and return instance
         Self {
             id: None,
             name,
