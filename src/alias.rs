@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use crate::error::DaikokuError;
+use crate::error::DkkError;
 
-pub type DaikokuResult<T> = Result<T, DaikokuError>;
+pub type DkkResult<T> = Result<T, DkkError>;
 pub type ThreadData<T> = Arc<Mutex<Option<T>>>;
 
-pub struct DaikokuThreadData<T>(pub ThreadData<T>);
+pub struct DkkThreadData<T>(pub ThreadData<T>);
 
-impl<T> DaikokuThreadData<T> {
+impl<T> DkkThreadData<T> {
     pub fn empty() -> Self {
         Self(Arc::new(Mutex::new(None)))
     }

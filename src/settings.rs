@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
 use sqlx::{mysql::MySqlConnectOptions, MySql, MySqlPool, Pool};
 
-use crate::{alias::DaikokuResult, error::DaikokuError};
+use crate::{alias::DkkResult, error::DkkError};
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
@@ -20,11 +20,11 @@ struct DatabaseSettings {
 }
 
 impl Settings {
-    pub fn load() -> DaikokuResult<Self> {
+    pub fn load() -> DkkResult<Self> {
         let settings = Config::builder()
             .add_source(config::File::with_name("configuration/config.base.yml"))
             .add_source(
-                config::Environment::with_prefix("DAIKOKU")
+                config::Environment::with_prefix("Dkk")
                     .prefix_separator("_")
                     .separator("__"),
             )
@@ -32,7 +32,7 @@ impl Settings {
 
         settings
             .try_deserialize::<Self>()
-            .map_err(DaikokuError::ConfigError)
+            .map_err(DkkError::ConfigError)
     }
 
     pub fn get_db_conn_pool(&self) -> Pool<MySql> {

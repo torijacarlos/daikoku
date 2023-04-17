@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
-use crate::{alias::DaikokuResult, error::DaikokuError};
+use crate::{alias::DkkResult, error::DkkError};
 
 use super::{get_account_balance, Account, AccountType, Transaction};
 
@@ -18,7 +18,7 @@ pub struct Wallet {
 unsafe impl Send for Wallet {}
 
 impl Wallet {
-    pub async fn create(pool: &Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn create(pool: &Pool<MySql>) -> DkkResult<Self> {
         let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
             .execute(&mut pool.acquire().await?)
             .await?;
@@ -26,7 +26,7 @@ impl Wallet {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
         let wallet = sqlx::query!(
             r#"SELECT id, created_date, updated_date FROM WALLET WHERE id = ?"#,
             id
@@ -46,7 +46,7 @@ impl Wallet {
 pub async fn get_wallet_accounts(
     wallet_id: u32,
     pool: &Pool<MySql>,
-) -> DaikokuResult<Vec<Account>> {
+) -> DkkResult<Vec<Account>> {
     sqlx::query_as!(
         Account,
         r#"SELECT  
@@ -59,7 +59,7 @@ pub async fn get_wallet_accounts(
     )
     .fetch_all(&mut pool.acquire().await?)
     .await
-    .map_err(DaikokuError::DatabaseError)
+    .map_err(DkkError::DatabaseError)
 }
 
 pub fn get_accounts_net_worth(accounts: &HashMap<Account, Vec<Transaction>>) -> f32 {

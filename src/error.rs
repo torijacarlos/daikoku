@@ -1,5 +1,5 @@
 #[derive(thiserror::Error, Debug)]
-pub enum DaikokuError {
+pub enum DkkError {
     #[error(transparent)]
     ConfigError(#[from] config::ConfigError),
     #[error(transparent)]
@@ -8,5 +8,5 @@ pub enum DaikokuError {
     RenderError(#[from] eframe::Error),
 }
 
-unsafe impl Send for DaikokuError {}
-unsafe impl Sync for DaikokuError {}
+unsafe impl Send for DkkError {}
+unsafe impl Sync for DkkError {}

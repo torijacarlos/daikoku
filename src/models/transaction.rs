@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{types::BigDecimal, MySql, Pool};
 
-use crate::{alias::DaikokuResult, error::DaikokuError};
+use crate::{alias::DkkResult, error::DkkError};
 
 use super::TransactionType;
 
@@ -20,7 +20,7 @@ impl Transaction {
         amount: f32,
         trx_type: TransactionType,
         pool: &Pool<MySql>,
-    ) -> DaikokuResult<Self> {
+    ) -> DkkResult<Self> {
         let result = sqlx::query!(
             r#"SELECT id FROM LU_TRANSACTION_TYPE WHERE value = ?"#,
             trx_type.as_str()
@@ -39,7 +39,7 @@ impl Transaction {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -53,10 +53,10 @@ impl Transaction {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
-        .map_err(DaikokuError::DatabaseError)
+        .map_err(DkkError::DatabaseError)
     }
 
-    pub async fn save(&self, pool: &Pool<MySql>) -> DaikokuResult<()> {
+    pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
         let trx_type = sqlx::query!(
             "select id from LU_TRANSACTION_TYPE where value=?",
             self.trx_type.as_str()

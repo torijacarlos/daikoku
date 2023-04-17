@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
-use crate::{alias::DaikokuResult, error::DaikokuError};
+use crate::{alias::DkkResult, error::DkkError};
 
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
@@ -22,7 +22,7 @@ impl Account {
         name: String,
         acc_type: AccountType,
         pool: &Pool<MySql>,
-    ) -> DaikokuResult<Self> {
+    ) -> DkkResult<Self> {
         let result = sqlx::query!(
             r#"SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?"#,
             acc_type.as_str()
@@ -41,7 +41,7 @@ impl Account {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -55,10 +55,10 @@ impl Account {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
-        .map_err(DaikokuError::DatabaseError)
+        .map_err(DkkError::DatabaseError)
     }
 
-    pub async fn save(&self, pool: &Pool<MySql>) -> DaikokuResult<()> {
+    pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
         let acc_type = sqlx::query!(
             "select id from LU_ACCOUNT_TYPE where value=?",
             self.acc_type.as_str()
@@ -100,7 +100,7 @@ pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transactio
 pub async fn get_account_transactions(
     account_id: u32,
     pool: &Pool<MySql>,
-) -> DaikokuResult<Vec<Transaction>> {
+) -> DkkResult<Vec<Transaction>> {
     sqlx::query_as!(
         Transaction,
         r#"SELECT  
@@ -113,5 +113,5 @@ pub async fn get_account_transactions(
     )
     .fetch_all(&mut pool.acquire().await?)
     .await
-    .map_err(DaikokuError::DatabaseError)
+    .map_err(DkkError::DatabaseError)
 }
