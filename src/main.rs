@@ -96,7 +96,7 @@ async fn main() -> DkkResult<()> {
         eframe::NativeOptions::default(),
         Box::new(|_| Box::new(Dkk::new())),
     )
-    .map_err(DkkError::RenderError)
+    .map_err(DkkError::Render)
 }
 
 impl eframe::App for Dkk {

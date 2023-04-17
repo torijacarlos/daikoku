@@ -53,7 +53,7 @@ impl Transaction {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
-        .map_err(DkkError::DatabaseError)
+        .map_err(DkkError::Database)
     }
 
     pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {

@@ -32,7 +32,7 @@ impl Settings {
 
         settings
             .try_deserialize::<Self>()
-            .map_err(DkkError::ConfigError)
+            .map_err(DkkError::Config)
     }
 
     pub fn get_db_conn_pool(&self) -> Pool<MySql> {

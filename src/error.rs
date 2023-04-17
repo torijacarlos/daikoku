@@ -1,11 +1,11 @@
 #[derive(thiserror::Error, Debug)]
 pub enum DkkError {
     #[error(transparent)]
-    ConfigError(#[from] config::ConfigError),
+    Config(#[from] config::ConfigError),
     #[error(transparent)]
-    DatabaseError(#[from] sqlx::Error),
+    Database(#[from] sqlx::Error),
     #[error(transparent)]
-    RenderError(#[from] eframe::Error),
+    Render(#[from] eframe::Error),
 }
 
 unsafe impl Send for DkkError {}

@@ -56,7 +56,7 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
     )
     .fetch_all(&mut pool.acquire().await?)
     .await
-    .map_err(DkkError::DatabaseError)
+    .map_err(DkkError::Database)
 }
 
 pub fn get_accounts_net_worth(accounts: &HashMap<Account, Vec<Transaction>>) -> f32 {

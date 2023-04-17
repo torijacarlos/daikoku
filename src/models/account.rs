@@ -55,7 +55,7 @@ impl Account {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
-        .map_err(DkkError::DatabaseError)
+        .map_err(DkkError::Database)
     }
 
     pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
@@ -82,7 +82,7 @@ impl Account {
     }
 }
 
-pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transaction>) -> f32 {
+pub fn get_account_balance(acc_type: &AccountType, transactions: &[Transaction]) -> f32 {
     let mut total: f32 = 0.0;
     let multiplier = match acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
@@ -113,5 +113,5 @@ pub async fn get_account_transactions(
     )
     .fetch_all(&mut pool.acquire().await?)
     .await
-    .map_err(DkkError::DatabaseError)
+    .map_err(DkkError::Database)
 }
