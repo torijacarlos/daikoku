@@ -34,8 +34,12 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                     ui.label(format!("Name: {}", acc.name));
                                     ui.label(format!("Type: {:?}", acc.acc_type));
                                     ui.label(format!(
-                                        "Account Created date: {:?}",
-                                        acc.created_date
+                                        "Balance date: {}",
+                                        acc.balance_date
+                                    ));
+                                    ui.label(format!(
+                                        "Created date: {}",
+                                        acc.created_date.unwrap()
                                     ));
                                     ui.label(format!("Balance: {:?}", get_account_balance(acc)));
                                     if ui.button("Edit account").clicked() {

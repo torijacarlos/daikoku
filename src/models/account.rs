@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
-use sqlx::{MySql, Pool};
+use chrono::{DateTime, Utc, NaiveDate};
+use sqlx::{MySql, Pool, types::BigDecimal};
 
 use crate::{alias::DkkResult, error::DkkError};
 
@@ -17,8 +17,12 @@ pub struct Account {
     pub wallet_id: u32,
     pub name: String,
     pub acc_type: AccountType,
+
+    pub balance: BigDecimal,
+    pub balance_date: DateTime<Utc>,
     pub transactions: Vec<Transaction>,
 }
+
 
 impl Account {
     pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
@@ -32,20 +36,26 @@ impl Account {
             sqlx::query!(
                 r#"
                 UPDATE ACCOUNT 
-                SET name = ?, type_id = ?
+                SET name = ?, type_id = ?, balance = ?, balance_date = ?
                 WHERE id = ?"#,
                 self.name,
                 acc_type.id,
+                self.balance,
+                self.balance_date,
                 self.id
             )
             .execute(&mut pool.acquire().await?)
             .await?;
         } else {
             sqlx::query!(
-                r#"INSERT INTO ACCOUNT (wallet_id, name, type_id) VALUES (?, ?, ?)"#,
+                r#"INSERT INTO ACCOUNT 
+                (wallet_id, name, type_id, balance, balance_date) 
+                VALUES (?, ?, ?, ?, ?)"#,
                 self.wallet_id,
                 self.name,
                 acc_type.id,
+                self.balance,
+                self.balance_date,
             )
             .execute(&mut pool.acquire().await?)
             .await?;

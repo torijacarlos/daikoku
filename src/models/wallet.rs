@@ -53,7 +53,10 @@ pub async fn get_all_wallet_ids(pool: &Pool<MySql>) -> DkkResult<Vec<u32>> {
 pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResult<Vec<Account>> {
     sqlx::query!(
         r#"SELECT  
-            a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
+            a.id as "id?", name, wallet_id, 
+            lu.value as "acc_type: AccountType",
+            balance, balance_date,
+            created_date as "created_date?", updated_date as "updated_date?"
             FROM ACCOUNT a
             JOIN LU_ACCOUNT_TYPE lu 
             ON a.type_id = lu.id
@@ -71,6 +74,8 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
                 wallet_id: account.wallet_id,
                 name: account.name.clone(),
                 acc_type: account.acc_type.clone(),
+                balance: account.balance.clone(),
+                balance_date: account.balance_date,
                 transactions: vec![]
             }
         })
