@@ -24,9 +24,10 @@ pub fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
                 ui.text_edit_singleline(&mut app.pin).labelled_by(label.id);
                 if ui.button("Import").clicked() {
                     let pin = app.pin.clone();
+                    let key = app.crypt_key.clone();
                     tokio::spawn(async move {
                         println!("Importing");
-                        let _ = storage::import(&pool_ref, &pin).await;
+                        let _ = storage::import(&pool_ref, &pin, &key).await;
                     });
                 }
             });

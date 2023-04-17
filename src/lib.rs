@@ -13,6 +13,7 @@ use std::{
 use alias::DkkThreadData;
 use egui::Align;
 use models::{Account, Transaction, Wallet};
+use settings::Settings;
 use sqlx::{MySql, Pool};
 use ui::{handle_input, render, DkkUiState};
 
@@ -26,6 +27,7 @@ pub struct Dkk {
     pub working_account: Account,
     pub working_transaction: Transaction,
 
+    pub crypt_key: String,
     pub pool: Arc<Pool<MySql>>,
 
     pub force_reload: bool,
@@ -37,7 +39,7 @@ pub struct Dkk {
 
 impl Dkk {
     pub fn new() -> Self {
-        let settings = settings::Settings::load().unwrap();
+        let settings = Settings::load().unwrap();
         Self {
             pin: String::new(),
             wallet: DkkThreadData::empty(),
@@ -46,6 +48,7 @@ impl Dkk {
             working_wallet: None,
             working_account: Account::default(),
             working_transaction: Transaction::default(),
+            crypt_key: settings.crypt_key.clone(),
             pool: Arc::new(settings.get_db_conn_pool()),
             force_reload: false,
             fps: 0.0,

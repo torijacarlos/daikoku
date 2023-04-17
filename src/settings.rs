@@ -8,6 +8,7 @@ use crate::{alias::DkkResult, error::DkkError};
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     database: DatabaseSettings,
+    pub crypt_key: String,
 }
 
 #[derive(Debug, Deserialize)]

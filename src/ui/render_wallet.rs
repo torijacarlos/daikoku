@@ -22,7 +22,7 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                             let label = ui.label("Pin: ".to_string());
                             ui.text_edit_singleline(&mut app.pin).labelled_by(label.id);
                             if ui.button("Export Wallet to file").clicked() {
-                                storage::export(wallet, &app.pin);
+                                storage::export(wallet, &app.pin, &app.crypt_key);
                             }
                         });
                     });

@@ -36,23 +36,6 @@ fn left_pad(pin: &String, len: usize) -> String {
     pin.clone()
 }
 
-pub fn export(wallet: &Wallet, pin: &String) {
-    let wallet = clear_ids(wallet.clone());
-    let mut location = home::home_dir().unwrap();
-    location.push("atelier");
-    let _ = std::fs::create_dir(&location);
-    location.push(".daikoku");
-    let wallet_string = ron::to_string(&wallet);
-    if let Ok(ws) = wallet_string {
-        let cipher = Aes256Gcm::new(left_pad(&"daikoku".to_string(), 32).as_bytes().into());
-        let pin = left_pad(pin, 12);
-        let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
-        if let Ok(ciphertext) = cipher.encrypt(nonce, ws.as_bytes()) {
-            let _ = std::fs::write(location, ciphertext);
-        }
-    }
-}
-
 fn clear_ids(mut wallet: Wallet) -> Wallet {
     wallet.id = None;
     for mut acc in &mut wallet.accounts {
@@ -66,8 +49,26 @@ fn clear_ids(mut wallet: Wallet) -> Wallet {
     wallet
 }
 
-pub async fn import(pool: &Pool<MySql>, pin: &String) -> DkkResult<()> {
-    let cipher = Aes256Gcm::new(left_pad(&"daikoku".to_string(), 32).as_bytes().into());
+pub fn export(wallet: &Wallet, pin: &String, key: &String) {
+    let wallet = clear_ids(wallet.clone());
+    let mut location = home::home_dir().unwrap();
+    location.push("atelier");
+    let _ = std::fs::create_dir(&location);
+    location.push(".daikoku");
+    let wallet_string = ron::to_string(&wallet);
+    if let Ok(ws) = wallet_string {
+        let cipher = Aes256Gcm::new(left_pad(key, 32).as_bytes().into());
+        let pin = left_pad(pin, 12);
+        let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
+        if let Ok(ciphertext) = cipher.encrypt(nonce, ws.as_bytes()) {
+            let _ = std::fs::write(location, ciphertext);
+        }
+    }
+}
+
+
+pub async fn import(pool: &Pool<MySql>, pin: &String, key: &String) -> DkkResult<()> {
+    let cipher = Aes256Gcm::new(left_pad(key, 32).as_bytes().into());
     let pin = left_pad(pin, 12);
     let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
     let mut location = home::home_dir().unwrap();
