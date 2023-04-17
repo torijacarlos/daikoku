@@ -11,6 +11,7 @@ use std::{
 };
 
 use alias::DkkThreadData;
+use egui::Align;
 use models::{Account, Transaction, Wallet};
 use sqlx::{MySql, Pool};
 use ui::{handle_input, render, DkkUiState};
@@ -55,7 +56,16 @@ impl Dkk {
 impl eframe::App for Dkk {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |gui| {
-            render(gui, self);
+            gui.with_layout(
+                egui::Layout::top_down_justified(Align::LEFT).with_cross_justify(true),
+                |gui| {
+                    egui::ScrollArea::vertical()
+                        .id_source("first")
+                        .show(gui, |gui| {
+                            render(gui, self);
+                        });
+                },
+            );
             handle_input(gui, self);
         });
         storage::load(self);

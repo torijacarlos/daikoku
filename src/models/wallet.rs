@@ -66,8 +66,9 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
     .fetch_all(&mut pool.acquire().await?)
     .await
     .map(|result| {
-        result.iter().map(|account| {
-            Account {
+        result
+            .iter()
+            .map(|account| Account {
                 id: account.id,
                 created_date: account.created_date,
                 updated_date: account.updated_date,
@@ -76,10 +77,9 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
                 acc_type: account.acc_type.clone(),
                 balance: account.balance.clone(),
                 balance_date: account.balance_date,
-                transactions: vec![]
-            }
-        })
-        .collect()
+                transactions: vec![],
+            })
+            .collect()
     })
     .map_err(DkkError::Database)
 }
@@ -93,6 +93,20 @@ pub fn get_accounts_net_worth(accounts: &Vec<Account>) -> f32 {
 }
 
 pub fn get_wallet_liquidity_index(accounts: &Vec<Account>) -> f32 {
-    // @todo: liq-index: (assets + expense) / (liabilities + equity + income)
-    todo!();
+    let mut num = 0.0;
+    let mut dem = 0.0;
+    for acc in accounts {
+        match acc.acc_type {
+            AccountType::Asset | AccountType::Expense => {
+                num += get_account_balance(acc);
+            }
+            _ => {
+                dem += get_account_balance(acc);
+            }
+        }
+    }
+    if dem == 0.0 {
+        return f32::INFINITY;
+    }
+    (num / dem).abs()
 }

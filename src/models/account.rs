@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc, NaiveDate};
-use sqlx::{MySql, Pool, types::BigDecimal};
+use chrono::{DateTime, Utc};
+use sqlx::{types::BigDecimal, MySql, Pool};
 
 use crate::{alias::DkkResult, error::DkkError};
 
@@ -22,7 +22,6 @@ pub struct Account {
     pub balance_date: DateTime<Utc>,
     pub transactions: Vec<Transaction>,
 }
-
 
 impl Account {
     pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
@@ -64,16 +63,17 @@ impl Account {
     }
 }
 
-
 pub fn get_account_balance(acc: &Account) -> f32 {
-    // @todo: from-balance-date: Get the account balance with the balance column
-    // and transaction that are after the balance_date
-    let mut total: f32 = 0.0;
+    let mut total: f32 = acc.balance.to_f32().unwrap();
     let multiplier = match acc.acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
         _ => -1.0,
     };
-    for trx in acc.transactions.iter() {
+    let transactions = acc
+        .transactions
+        .iter()
+        .filter(|t| t.execution_date >= acc.balance_date);
+    for trx in transactions {
         match trx.trx_type {
             TransactionType::Debit => total += trx.amount.to_f32().unwrap() * multiplier,
             TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,

@@ -1,7 +1,10 @@
 use egui::RichText;
 
 use crate::{
-    models::{get_account_balance, get_accounts_net_worth, Account, Transaction, Wallet},
+    models::{
+        get_account_balance, get_accounts_net_worth, get_wallet_liquidity_index, Account,
+        Transaction, Wallet,
+    },
     Dkk,
 };
 
@@ -20,6 +23,10 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                             "Net Worth: {:?}",
                             get_accounts_net_worth(&wallet.accounts)
                         ));
+                        ui.label(format!(
+                            "Liquidity Index: {:?}",
+                            get_wallet_liquidity_index(&wallet.accounts)
+                        ));
                     });
                     ui.vertical(|ui| {
                         wallet
@@ -27,16 +34,20 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                             .sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
 
                         ui.label(RichText::new("Accounts").strong());
+                        if ui.button("Create account").clicked() {
+                            app.state = DkkUiState::AccountView;
+                            app.working_account = Account {
+                                wallet_id: wallet.id,
+                                ..Default::default()
+                            };
+                        }
                         for acc in &wallet.accounts {
                             ui.group(|ui| {
                                 ui.vertical(|ui| {
                                     ui.label(format!("Id: {}", acc.id.unwrap()));
                                     ui.label(format!("Name: {}", acc.name));
                                     ui.label(format!("Type: {:?}", acc.acc_type));
-                                    ui.label(format!(
-                                        "Balance date: {}",
-                                        acc.balance_date
-                                    ));
+                                    ui.label(format!("Balance date: {}", acc.balance_date));
                                     ui.label(format!(
                                         "Created date: {}",
                                         acc.created_date.unwrap()
@@ -68,13 +79,6 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                     });
                                 });
                             });
-                        }
-                        if ui.button("Create account").clicked() {
-                            app.state = DkkUiState::AccountView;
-                            app.working_account = Account {
-                                wallet_id: wallet.id,
-                                ..Default::default()
-                            };
                         }
                     });
                 });

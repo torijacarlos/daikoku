@@ -14,4 +14,4 @@ pub use wallet::*;
 // ie. Payroll |every 1st and 17th| by X amount
 // ie. Payroll |twice a month| by X amount
 //
-// @todo:forecast: Should be able to see net worth move with the give scheduled transactions 
+// @todo:forecast: Should be able to see net worth move with the give scheduled transactions
