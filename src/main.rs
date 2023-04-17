@@ -5,7 +5,7 @@ mod settings;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
@@ -20,14 +20,11 @@ use crate::settings::Settings;
 struct Daikoku {
     wallet: DaikokuThreadData<Wallet>,
 
-    // @todo: maybe both accounts and transactions should be a single hashmap
-    // get_accounts_net_worth could receive HashMap<Account, Vec<Transaction>> instead
-    accounts: DaikokuThreadData<Vec<Account>>,
-    transactions: DaikokuThreadData<HashMap<u32, Vec<Transaction>>>,
+    accounts: DaikokuThreadData<HashMap<Account, Vec<Transaction>>>,
     pool: Arc<Pool<MySql>>,
-    frame: u16,
-    fps: u16,
-    start_time: Instant,
+    frame: u128,
+    frame_time: Instant,
+    fps: f32,
 }
 
 impl Daikoku {
@@ -36,12 +33,11 @@ impl Daikoku {
         let pool = Arc::new(settings.get_db_conn_pool());
         Self {
             wallet: DaikokuThreadData::empty(),
-            accounts: DaikokuThreadData::empty(),
-            transactions: DaikokuThreadData::new(HashMap::new()),
+            accounts: DaikokuThreadData::new(HashMap::new()),
             pool,
             frame: 0,
-            fps: 0,
-            start_time: Instant::now(),
+            frame_time: Instant::now(),
+            fps: 0.0,
         }
     }
 }
@@ -63,53 +59,34 @@ fn load_accounts(app: &Daikoku, wallet_id: u32) {
     let pool_ref = app.pool.clone();
     let accounts_ref = app.accounts.clone();
 
-    if app.wallet.is_set() && !app.accounts.is_set() {
+    if app.wallet.is_set() {
         tokio::spawn(async move {
+            let mut map: HashMap<Account, Vec<Transaction>> = HashMap::new();
             let accounts = get_wallet_accounts(wallet_id, &pool_ref).await.ok();
-            if let Ok(mut accounts_guard) = accounts_ref.lock() {
-                *accounts_guard = accounts;
+            if let Some(accounts) = accounts {
+                for acc in accounts {
+                    let trxs = get_account_transactions(acc.id, &pool_ref).await;
+                    if let Ok(trxs) = trxs {
+                        map.insert(acc, trxs);
+                    }
+                }
+
+                if let Ok(mut accounts_guard) = accounts_ref.lock() {
+                    *accounts_guard = Some(map);
+                }
             }
         });
     }
 }
 
-fn load_transactions(app: &Daikoku, account_id: u32) {
-    let pool_ref = app.pool.clone();
-    let transactions_ref = app.transactions.clone();
-
-    tokio::spawn(async move {
-        let mut loaded_transactions = false;
-        if let Ok(transactions_guard) = transactions_ref.lock() {
-            if let Some(ref transactions) = *transactions_guard {
-                loaded_transactions = transactions.contains_key(&account_id);
-            }
-        }
-
-        if !loaded_transactions {
-            let transactions = get_account_transactions(account_id, &pool_ref).await.ok();
-            if let Some(transactions) = transactions {
-                if let Ok(mut transactions_guard) = transactions_ref.lock() {
-                    if let Some(ref mut transactions_map) = *transactions_guard {
-                        transactions_map.insert(account_id, transactions);
-                    }
-                }
-            }
-        }
-    });
-}
-
 fn clear_data(app: &Daikoku) {
     let wallet_ref = app.wallet.clone();
     let accounts_ref = app.accounts.clone();
-    let transactions_ref = app.transactions.clone();
     tokio::spawn(async move {
         if let Ok(mut guard) = wallet_ref.lock() {
             *guard = None;
         }
         if let Ok(mut guard) = accounts_ref.lock() {
-            *guard = None;
-        }
-        if let Ok(mut guard) = transactions_ref.lock() {
             *guard = Some(HashMap::new());
         }
     });
@@ -125,21 +102,12 @@ async fn main() -> DaikokuResult<()> {
 impl eframe::App for Daikoku {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.frame += 1;
-
             ui.heading("Daikoku");
 
             // load data
             let wallet_id = 1;
             load_wallet(self, wallet_id);
             load_accounts(self, wallet_id);
-            self.accounts.get(|accounts| {
-                if let Some(accounts) = accounts {
-                    for acc in accounts {
-                        load_transactions(self, acc.id);
-                    }
-                }
-            });
 
             // render data
 
@@ -162,7 +130,7 @@ impl eframe::App for Daikoku {
 
                 self.accounts.get(|accounts| {
                     if let Some(accounts) = accounts {
-                        for acc in accounts {
+                        for acc in accounts.keys() {
                             ui.group(|ui| {
                                 ui.vertical(|ui| {
                                     ui.label(format!("Account Id: {}", acc.id));
@@ -171,30 +139,15 @@ impl eframe::App for Daikoku {
                                         "Account Created date: {:?}",
                                         acc.created_date
                                     ));
-                                    self.transactions.get(|transactions| {
-                                        if let Some(transactions) = transactions {
-                                            if transactions.contains_key(&acc.id) {
-                                                if let Some(trxs) = transactions.get(&acc.id) {
-                                                    for t in trxs {
-                                                        ui.group(|ui| {
-                                                            ui.label(format!(
-                                                                "Transaction id: {}",
-                                                                t.id
-                                                            ));
-                                                            ui.label(format!(
-                                                                "Amount: {:?}",
-                                                                t.amount
-                                                            ));
-                                                            ui.label(format!(
-                                                                "Trx Type: {:?}",
-                                                                t.trx_type
-                                                            ));
-                                                        });
-                                                    }
-                                                }
-                                            }
+                                    if let Some(transactions) = accounts.get(acc) {
+                                        for t in transactions {
+                                            ui.group(|ui| {
+                                                ui.label(format!("Transaction id: {}", t.id));
+                                                ui.label(format!("Amount: {:?}", t.amount));
+                                                ui.label(format!("Trx Type: {:?}", t.trx_type));
+                                            });
                                         }
-                                    });
+                                    }
                                 });
                             });
                         }
@@ -204,15 +157,16 @@ impl eframe::App for Daikoku {
 
             ui.group(|ui| {
                 // see fps
-                let sec_marker = self.start_time.elapsed().as_secs_f32() % 1.0;
-                if sec_marker > 0.985 {
-                    self.fps = self.frame;
-                    self.frame = 0;
-                    clear_data(self);
-                }
-                ctx.request_repaint();
                 ui.label(format!("fps '{:?}'", self.fps));
             });
         });
+
+        self.frame += 1;
+        if self.frame_time.elapsed() > Duration::new(1, 0) {
+            self.fps = self.frame as f32;
+            self.frame = 0;
+            self.frame_time = Instant::now();
+        }
+        ctx.request_repaint();
     }
 }

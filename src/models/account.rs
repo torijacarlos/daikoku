@@ -6,7 +6,7 @@ use crate::{alias::DaikokuResult, error::DaikokuError};
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Debug)]
+#[derive(Hash, Eq, PartialEq, Debug)]
 pub struct Account {
     pub id: u32,
     pub wallet_id: u32,
