@@ -19,7 +19,7 @@ impl Transaction {
         account_id: u32,
         amount: f32,
         trx_type: TransactionType,
-        pool: &mut Pool<MySql>,
+        pool: &Pool<MySql>,
     ) -> DaikokuResult<Self> {
         let result = sqlx::query!(
             r#"SELECT id FROM LU_TRANSACTION_TYPE WHERE value = ?"#,
@@ -39,7 +39,7 @@ impl Transaction {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -56,7 +56,7 @@ impl Transaction {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn save(&self, pool: &mut Pool<MySql>) -> DaikokuResult<()> {
+    pub async fn save(&self, pool: &Pool<MySql>) -> DaikokuResult<()> {
         let trx_type = sqlx::query!(
             "select id from LU_TRANSACTION_TYPE where value=?",
             self.trx_type.as_str()

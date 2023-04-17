@@ -15,7 +15,7 @@ pub struct Wallet {
 unsafe impl Send for Wallet {}
 
 impl Wallet {
-    pub async fn create(pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn create(pool: &Pool<MySql>) -> DaikokuResult<Self> {
         let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
             .execute(&mut pool.acquire().await?)
             .await?;
@@ -34,7 +34,7 @@ impl Wallet {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn get_accounts(&self, pool: &mut Pool<MySql>) -> DaikokuResult<Vec<Account>> {
+    pub async fn get_accounts(&self, pool: &Pool<MySql>) -> DaikokuResult<Vec<Account>> {
         sqlx::query_as!(
             Account,
             r#"SELECT  
@@ -50,7 +50,7 @@ impl Wallet {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn net_worth(&self, pool: &mut Pool<MySql>) -> DaikokuResult<f32> {
+    pub async fn net_worth(&self, pool: &Pool<MySql>) -> DaikokuResult<f32> {
         let mut total = 0.0;
         for acc in self.get_accounts(pool).await? {
             total += &acc.balance(pool).await?;

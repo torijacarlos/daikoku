@@ -21,7 +21,7 @@ impl Account {
         wallet_id: u32,
         name: String,
         acc_type: AccountType,
-        pool: &mut Pool<MySql>,
+        pool: &Pool<MySql>,
     ) -> DaikokuResult<Self> {
         let result = sqlx::query!(
             r#"SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?"#,
@@ -41,7 +41,7 @@ impl Account {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -58,7 +58,7 @@ impl Account {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn save(&self, pool: &mut Pool<MySql>) -> DaikokuResult<()> {
+    pub async fn save(&self, pool: &Pool<MySql>) -> DaikokuResult<()> {
         let acc_type = sqlx::query!(
             "select id from LU_ACCOUNT_TYPE where value=?",
             self.acc_type.as_str()
@@ -83,7 +83,7 @@ impl Account {
 
     pub async fn get_transactions(
         &self,
-        pool: &mut Pool<MySql>,
+        pool: &Pool<MySql>,
     ) -> DaikokuResult<Vec<Transaction>> {
         sqlx::query_as!(
             Transaction,
@@ -100,7 +100,7 @@ impl Account {
         .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn balance(&self, pool: &mut Pool<MySql>) -> DaikokuResult<f32> {
+    pub async fn balance(&self, pool: &Pool<MySql>) -> DaikokuResult<f32> {
         let mut total: f32 = 0.0;
         let multiplier = match &self.acc_type {
             AccountType::Asset | AccountType::Expense => 1.0,

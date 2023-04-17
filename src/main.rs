@@ -45,8 +45,6 @@ fn render_wallet(app: &Daikoku, ui: &mut egui::Ui) {
     app.wallet.get(|w: Option<&Wallet>| {
         if let Some(w) = w {
             ui.label(format!("Wallet '{}'", w.id));
-        } else {
-            load_wallet(&app);
         }
     });
 }
@@ -55,8 +53,6 @@ fn render_net_worth(app: &Daikoku, ui: &mut egui::Ui) {
     app.wallet.get(|w: Option<&Wallet>| {
         if let Some(w) = w {
             ui.label(format!("Wallet '{}'", w.id));
-        } else {
-            load_wallet(&app);
         }
     });
 }
@@ -78,11 +74,15 @@ impl eframe::App for Daikoku {
             ui.heading("Daikoku");
             ui.label(format!("Frame '{}'", self.frame));
 
-            render_wallet(self, ui);
-
-            // (torijacarlos:todo) Render net worth
-
-            render_net_worth(self, ui);
+            {
+                // load data
+                load_wallet(&self);
+            }
+            {
+                // render data
+                render_wallet(self, ui);
+                render_net_worth(self, ui);
+            }
             self.frame += 1;
         });
     }
