@@ -43,10 +43,7 @@ impl Wallet {
     }
 }
 
-pub async fn get_wallet_accounts(
-    wallet_id: u32,
-    pool: &Pool<MySql>,
-) -> DkkResult<Vec<Account>> {
+pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResult<Vec<Account>> {
     sqlx::query_as!(
         Account,
         r#"SELECT  
