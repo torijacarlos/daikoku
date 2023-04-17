@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use chrono::{NaiveTime, TimeZone, Utc};
 use sqlx::types::BigDecimal;
 
 use crate::{models::TransactionType, Dkk};
@@ -27,6 +28,14 @@ pub fn render_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
             if text_amount.parse::<f32>().is_ok() {
                 app.working_transaction.amount = BigDecimal::from_str(&text_amount[..]).unwrap();
             }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Execution Date: ".to_string());
+            let mut date_picker = app.working_transaction.execution_date.naive_utc().date();
+            ui.add(egui_extras::DatePickerButton::new(&mut date_picker));
+            app.working_transaction.execution_date = Utc.from_utc_datetime(
+                &date_picker.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+            );
         });
         ui.horizontal(|ui| {
             let label = ui.label("Type: ".to_string());

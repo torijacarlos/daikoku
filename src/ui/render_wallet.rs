@@ -47,12 +47,12 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                     ui.label(format!("Id: {}", acc.id.unwrap()));
                                     ui.label(format!("Name: {}", acc.name));
                                     ui.label(format!("Type: {:?}", acc.acc_type));
+                                    ui.label(format!("Balance: {:?}", get_account_balance(acc)));
                                     ui.label(format!("Balance date: {}", acc.balance_date));
                                     ui.label(format!(
                                         "Created date: {}",
                                         acc.created_date.unwrap()
                                     ));
-                                    ui.label(format!("Balance: {:?}", get_account_balance(acc)));
                                     if ui.button("Edit account").clicked() {
                                         app.state = DkkUiState::AccountView;
                                         app.working_account = acc.clone();
@@ -61,6 +61,7 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         ui.group(|ui| {
                                             ui.label(format!("Transaction id: {}", t.id.unwrap()));
                                             ui.label(format!("Amount: {:?}", t.amount));
+                                            ui.label(format!("Date: {:?}", t.execution_date));
                                             ui.label(format!("Trx Type: {:?}", t.trx_type));
                                             if ui.button("Edit transaction").clicked() {
                                                 app.state = DkkUiState::TransactionView;
