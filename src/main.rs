@@ -1,5 +1,8 @@
+mod settings;
+
+use crate::settings::Settings;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use sqlx::{mysql::MySqlConnectOptions, ConnectOptions};
 
 #[derive(Debug)]
 enum AccountType {
@@ -16,11 +19,8 @@ enum TransactionType {
     Credit,
 }
 
-trait Storage {
-    fn get(id: u32) -> Self;
-    fn save();
-}
 
+#[derive(Debug)]
 struct Wallet<'a> {
     id: Option<u32>,
     username: &'a str,
@@ -42,16 +42,6 @@ impl<'a> Wallet<'a> {
             total += acc.balance();
         }
         total
-    }
-}
-
-impl<'a> Storage for Wallet<'a> {
-    fn get(id: u32) -> Self {
-        todo!();
-    }
-
-    fn save() {
-        todo!();
     }
 }
 
@@ -114,7 +104,20 @@ impl Transaction {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), sqlx::Error> {
+    let settings = Settings::load().unwrap();
+    let mut conn = settings.get_db_conn().await?;
+
+    let results = sqlx::query!(
+        r#"SELECT id, username FROM WALLET where username = "torijacarlos""#
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    println!("{:?}", results);
+
+    println!("{:#?}", settings);
     let mut wallet = Wallet::new("torijacarlos");
     wallet.accounts = vec![
         Account::new(0, "test-asset", AccountType::Asset),
@@ -132,4 +135,6 @@ fn main() {
         println!("{}: {}", acc.name, acc.balance());
     }
     println!("Wallet: {}", wallet.net_worth());
+
+    Ok(())
 }
