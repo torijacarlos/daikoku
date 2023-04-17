@@ -42,6 +42,9 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                 if ui.button("Edit account").clicked() {
                                     app.working_account_id = acc.id;
                                 }
+                                // @todo: show them as cards, meaning, all account that fit on a
+                                // row, instead of 1 every row
+                                // If not, change them to a table 
                                 render_account(ui, acc, acc.id == app.working_account_id);
 
                                 for t in acc.transactions.iter_mut() {
@@ -49,6 +52,10 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         if ui.button("Edit transaction").clicked() {
                                             app.working_transaction_id = t.id;
                                         }
+                                        // @todo: egui has a table. change transactions to that
+                                        // maybe a floating?
+                                        // I think this makes them a floating window
+                                        // https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/widget_gallery.rs#L53
                                         render_transaction(
                                             ui,
                                             t,
