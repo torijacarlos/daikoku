@@ -3,6 +3,7 @@ mod error;
 mod models;
 mod settings;
 
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -14,6 +15,7 @@ use models::{
     get_account_balance, get_account_transactions, get_accounts_net_worth, get_all_wallet_ids,
     get_wallet_accounts, Account, AccountType, Transaction, TransactionType,
 };
+use sqlx::types::BigDecimal;
 use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
@@ -25,24 +27,7 @@ enum DkkState {
     CreateAccount,
     CreateTransaction,
     // @todo:edit-records: this is kind of related to the remove-structs todo since we could reuse
-    // the DkkThreadData for each instead of creating new structs 
-}
-
-// @todo:remove-structs: perhaps we could use the main structs setting some optional values
-// The `Struct::create` functions would receive the structs instead of individual values
-#[derive(Default, Clone)]
-struct CreateAccount {
-    wallet_id: u32,
-    name: String,
-    acc_type: AccountType,
-}
-
-// @todo:remove-structs
-#[derive(Default, Clone)]
-struct CreateTransaction {
-    amount_str: String,
-    trx_type: TransactionType,
-    account_id: u32,
+    // the DkkThreadData for each instead of creating new structs
 }
 
 struct Dkk {
@@ -51,8 +36,8 @@ struct Dkk {
     available_wallets: DkkThreadData<Vec<u32>>,
     selected_wallet: Option<u32>,
 
-    create_account: CreateAccount,
-    create_transaction: CreateTransaction,
+    working_account: Account,
+    working_transaction: Transaction,
     pool: Arc<Pool<MySql>>,
 
     force_reload: bool,
@@ -70,8 +55,8 @@ impl Dkk {
             available_wallets: DkkThreadData::empty(),
             selected_wallet: None,
             wallet: DkkThreadData::empty(),
-            create_account: CreateAccount::default(),
-            create_transaction: CreateTransaction::default(),
+            working_account: Account::default(),
+            working_transaction: Transaction::default(),
             pool: Arc::new(settings.get_db_conn_pool()),
             force_reload: false,
             fps: 0.0,
@@ -209,42 +194,42 @@ fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
             "Creating account for wallet: {}",
-            app.create_account.wallet_id
+            app.working_account.wallet_id
         ));
     });
     ui.group(|ui| {
         ui.horizontal(|ui| {
             let label = ui.label("Name: ".to_string());
-            ui.text_edit_singleline(&mut app.create_account.name)
+            ui.text_edit_singleline(&mut app.working_account.name)
                 .labelled_by(label.id);
         });
         ui.horizontal(|ui| {
             let label = ui.label("Type: ".to_string());
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", app.create_account.acc_type))
+                .selected_text(format!("{:?}", app.working_account.acc_type))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
-                        &mut app.create_account.acc_type,
+                        &mut app.working_account.acc_type,
                         AccountType::Asset,
                         "Asset",
                     );
                     ui.selectable_value(
-                        &mut app.create_account.acc_type,
+                        &mut app.working_account.acc_type,
                         AccountType::Equity,
                         "Equity",
                     );
                     ui.selectable_value(
-                        &mut app.create_account.acc_type,
+                        &mut app.working_account.acc_type,
                         AccountType::Expense,
                         "Expense",
                     );
                     ui.selectable_value(
-                        &mut app.create_account.acc_type,
+                        &mut app.working_account.acc_type,
                         AccountType::Income,
                         "Income",
                     );
                     ui.selectable_value(
-                        &mut app.create_account.acc_type,
+                        &mut app.working_account.acc_type,
                         AccountType::Liability,
                         "Liability",
                     );
@@ -256,7 +241,7 @@ fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
             if ui.button("Create").clicked() {
                 app.state = DkkState::Wallet;
                 let pool_ref = app.pool.clone();
-                let ca_copy = app.create_account.clone();
+                let ca_copy = app.working_account.clone();
                 tokio::spawn(async move {
                     match Account::create(
                         ca_copy.wallet_id,
@@ -281,31 +266,31 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
             "Creating Transaction for account: {}",
-            app.create_transaction.account_id
+            app.working_transaction.account_id
         ));
     });
     ui.group(|ui| {
         ui.horizontal(|ui| {
             let label = ui.label("Amount: ".to_string());
-            let prev_value = app.create_transaction.amount_str.clone();
-            ui.text_edit_singleline(&mut app.create_transaction.amount_str)
+            let mut text_amount = app.working_transaction.amount.clone().to_string();
+            ui.text_edit_singleline(&mut text_amount)
                 .labelled_by(label.id);
-            if app.create_transaction.amount_str.parse::<f32>().is_err() {
-                app.create_transaction.amount_str = prev_value;
+            if text_amount.parse::<f32>().is_ok() {
+                app.working_transaction.amount = BigDecimal::from_str(&text_amount[..]).unwrap();
             }
         });
         ui.horizontal(|ui| {
             let label = ui.label("Type: ".to_string());
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", app.create_transaction.trx_type))
+                .selected_text(format!("{:?}", app.working_transaction.trx_type))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
-                        &mut app.create_transaction.trx_type,
+                        &mut app.working_transaction.trx_type,
                         TransactionType::Debit,
                         "Debit",
                     );
                     ui.selectable_value(
-                        &mut app.create_transaction.trx_type,
+                        &mut app.working_transaction.trx_type,
                         TransactionType::Credit,
                         "Credit",
                     );
@@ -317,24 +302,22 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
             if ui.button("Create").clicked() {
                 app.state = DkkState::Wallet;
                 let pool_ref = app.pool.clone();
-                if let Ok(amount) = app.create_transaction.amount_str.parse::<f32>() {
-                    let ct_copy = app.create_transaction.clone();
-                    tokio::spawn(async move {
-                        match Transaction::create(
-                            ct_copy.account_id,
-                            amount,
-                            ct_copy.trx_type,
-                            &pool_ref,
-                        )
-                        .await
-                        {
-                            Ok(_) => {}
-                            Err(e) => {
-                                todo!("unhandled error: {:?}", e)
-                            }
+                let ct_copy = app.working_transaction.clone();
+                tokio::spawn(async move {
+                    match Transaction::create(
+                        ct_copy.account_id,
+                        f32::from_str(&ct_copy.amount.to_string()).unwrap(),
+                        ct_copy.trx_type,
+                        &pool_ref,
+                    )
+                    .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            todo!("unhandled error: {:?}", e)
                         }
-                    });
-                }
+                    }
+                });
             }
         });
     });
@@ -380,7 +363,10 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                     if let Some(transactions) = wallet.accounts.get(acc) {
                                         for t in transactions {
                                             ui.group(|ui| {
-                                                ui.label(format!("Transaction id: {}", t.id.unwrap()));
+                                                ui.label(format!(
+                                                    "Transaction id: {}",
+                                                    t.id.unwrap()
+                                                ));
                                                 ui.label(format!("Amount: {:?}", t.amount));
                                                 ui.label(format!("Trx Type: {:?}", t.trx_type));
                                             });
@@ -388,7 +374,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         ui.group(|ui| {
                                             if ui.button("Create transaction").clicked() {
                                                 app.state = DkkState::CreateTransaction;
-                                                app.create_transaction = CreateTransaction {
+                                                app.working_transaction = Transaction {
                                                     account_id: acc.id.unwrap(),
                                                     ..Default::default()
                                                 };
@@ -400,7 +386,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                         }
                         if ui.button("Create account").clicked() {
                             app.state = DkkState::CreateAccount;
-                            app.create_account = CreateAccount {
+                            app.working_account = Account {
                                 wallet_id: wallet.id,
                                 ..Default::default()
                             };

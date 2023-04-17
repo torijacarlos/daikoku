@@ -5,7 +5,7 @@ use crate::{alias::DkkResult, error::DkkError};
 
 use super::TransactionType;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct Transaction {
     // db data
     pub id: Option<u32>,

@@ -6,7 +6,7 @@ use crate::{alias::DkkResult, error::DkkError};
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Hash, Eq, PartialEq, Debug, Default)]
+#[derive(Hash, Eq, PartialEq, Debug, Default, Clone)]
 pub struct Account {
     // db data
     pub id: Option<u32>,
