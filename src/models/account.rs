@@ -82,10 +82,7 @@ impl Account {
     }
 }
 
-pub fn get_account_balance(
-    acc_type: &AccountType,
-    transactions: &Vec<Transaction>,
-) -> DaikokuResult<f32> {
+pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transaction>) -> f32 {
     let mut total: f32 = 0.0;
     let multiplier = match acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
@@ -97,7 +94,7 @@ pub fn get_account_balance(
             TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,
         }
     }
-    Ok(total)
+    total
 }
 
 pub async fn get_account_transactions(

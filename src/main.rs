@@ -10,7 +10,7 @@ use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
 use egui::RichText;
 use error::DaikokuError;
-use models::{get_account_transactions, get_wallet_accounts};
+use models::{get_account_transactions, get_accounts_net_worth, get_wallet_accounts};
 use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
@@ -63,7 +63,7 @@ fn load_wallet(app: &mut Daikoku, wallet_id: u32) {
 
             if let Ok(mut wallet_guard) = wallet_ref.lock() {
                 *wallet_guard = wallet;
-                println!("REloaded!");
+                println!("Reloaded!");
             }
         });
     }
@@ -86,16 +86,20 @@ impl eframe::App for Daikoku {
             load_wallet(self, wallet_id);
 
             // render data
-
             ui.vertical(|ui| {
                 ui.group(|ui| {
                     ui.label(RichText::new("Wallet information").strong());
-                    ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
                         self.wallet.get(|w: Option<&Wallet>| {
                             if let Some(w) = w {
-                                ui.label(format!("Id: {}", w.id));
-                                ui.label(format!("Created date: {:?}", w.created_date));
-
+                                ui.group(|ui| {
+                                    ui.label(format!("Id: {}", w.id));
+                                    ui.label(format!("Created date: {:?}", w.created_date));
+                                    ui.label(format!(
+                                        "Net Worth: {:?}",
+                                        get_accounts_net_worth(&w.accounts)
+                                    ));
+                                });
                                 ui.vertical(|ui| {
                                     ui.label(RichText::new("Accounts").strong());
 
