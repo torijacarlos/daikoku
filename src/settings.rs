@@ -1,7 +1,7 @@
 use config::{Config, ConfigError};
-use secrecy::{Secret, ExposeSecret};
+use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
-use sqlx::{mysql::MySqlConnectOptions, MySqlPool, Pool, MySql};
+use sqlx::{mysql::MySqlConnectOptions, MySql, MySqlPool, Pool};
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {

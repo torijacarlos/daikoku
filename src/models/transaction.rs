@@ -1,4 +1,5 @@
 use chrono::{Utc, DateTime};
+use sqlx::{Pool, MySql};
 
 use super::TransactionType;
 
@@ -12,7 +13,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(account_id: u32, amount: f32, trx_type: TransactionType) -> Self {
+    pub fn create(account_id: u32, amount: f32, trx_type: TransactionType, _pool: &mut Pool<MySql>) -> Self {
         Transaction {
             id: None,
             amount,

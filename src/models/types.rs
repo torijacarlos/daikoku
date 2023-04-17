@@ -7,6 +7,18 @@ pub enum AccountType {
     Equity,
 }
 
+impl AccountType {
+    pub fn as_str(&self) -> &'static str {
+        match &self {
+            Self::Asset => "Asset",
+            Self::Liability => "Liability",
+            Self::Expense => "Expense",
+            Self::Income => "Income",
+            Self::Equity => "equity",
+        }
+    }
+}
+
 impl TryFrom<String> for AccountType {
     type Error = String;
 
@@ -17,7 +29,7 @@ impl TryFrom<String> for AccountType {
             "expense" => Self::Expense,
             "income" => Self::Income,
             "equity" => Self::Equity,
-            _ => return Err(format!("Unhandled Account type: {}", value))
+            _ => return Err(format!("Unhandled Account type: {}", value)),
         };
         Ok(result)
     }
@@ -36,9 +48,8 @@ impl TryFrom<String> for TransactionType {
         let result = match &value.to_lowercase()[..] {
             "debit" => Self::Debit,
             "credit" => Self::Credit,
-            _ => return Err(format!("Unhandled Transaction type: {}", value))
+            _ => return Err(format!("Unhandled Transaction type: {}", value)),
         };
         Ok(result)
     }
 }
-
