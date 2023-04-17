@@ -18,28 +18,40 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub async fn create(
-        account_id: u32,
-        amount: f32,
-        trx_type: TransactionType,
-        pool: &Pool<MySql>,
-    ) -> DkkResult<Self> {
-        let result = sqlx::query!(
-            r#"SELECT id FROM LU_TRANSACTION_TYPE WHERE value = ?"#,
-            trx_type.as_str()
+    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<Self> {
+        let id: u32;
+        let trx_type = sqlx::query!(
+            "SELECT id FROM LU_TRANSACTION_TYPE WHERE value = ?",
+            self.trx_type.as_str()
         )
         .fetch_one(&mut pool.acquire().await?)
         .await?;
-        let result = sqlx::query!(
-            r#"INSERT INTO TRANSACTION (account_id, amount, type_id) VALUES (?, ?, ?)"#,
-            account_id,
-            amount,
-            result.id
-        )
-        .execute(&mut pool.acquire().await?)
-        .await?;
-
-        Self::get(result.last_insert_id() as u32, pool).await
+        if self.id.is_some() {
+            sqlx::query!(
+                r#"
+                UPDATE TRANSACTION 
+                SET amount = ?, execution_date = ?, type_id = ?
+                WHERE id = ?"#,
+                self.amount,
+                self.execution_date,
+                trx_type.id,
+                self.id
+            )
+            .execute(&mut pool.acquire().await?)
+            .await?;
+            id = self.id.unwrap();
+        } else {
+            let result = sqlx::query!(
+                r#"INSERT INTO TRANSACTION (account_id, amount, type_id) VALUES (?, ?, ?)"#,
+                self.account_id,
+                self.amount,
+                trx_type.id
+            )
+            .execute(&mut pool.acquire().await?)
+            .await?;
+            id = result.last_insert_id() as u32;
+        }
+        Self::get(id, pool).await
     }
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
@@ -57,29 +69,5 @@ impl Transaction {
         .fetch_one(&mut pool.acquire().await?)
         .await
         .map_err(DkkError::Database)
-    }
-
-    pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
-        let trx_type = sqlx::query!(
-            "select id from LU_TRANSACTION_TYPE where value=?",
-            self.trx_type.as_str()
-        )
-        .fetch_one(&mut pool.acquire().await?)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            UPDATE TRANSACTION 
-            SET amount = ?, execution_date = ?, type_id = ?
-            WHERE id = ?"#,
-            self.amount,
-            self.execution_date,
-            trx_type.id,
-            self.id
-        )
-        .execute(&mut pool.acquire().await?)
-        .await?;
-
-        Ok(())
     }
 }

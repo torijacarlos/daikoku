@@ -17,7 +17,7 @@ pub struct Wallet {
 unsafe impl Send for Wallet {}
 
 impl Wallet {
-    pub async fn create(pool: &Pool<MySql>) -> DkkResult<Self> {
+    pub async fn upsert(pool: &Pool<MySql>) -> DkkResult<Self> {
         let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
             .execute(&mut pool.acquire().await?)
             .await?;

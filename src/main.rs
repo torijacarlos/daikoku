@@ -153,7 +153,7 @@ fn render(ui: &mut egui::Ui, app: &mut Dkk) {
     match app.state {
         DkkState::Init => render_init(ui, app),
         DkkState::Wallet => render_wallet(ui, app),
-        DkkState::CreateAccount => render_create_account(ui, app),
+        DkkState::CreateAccount => render_account(ui, app),
         DkkState::CreateTransaction => render_create_transaction(ui, app),
     };
 }
@@ -177,7 +177,7 @@ fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
             if ui.button("Create").clicked() {
                 let pool_ref = app.pool.clone();
                 tokio::spawn(async move {
-                    match Wallet::create(&pool_ref).await {
+                    match Wallet::upsert(&pool_ref).await {
                         Ok(_) => {}
                         Err(e) => {
                             todo!("unhandled error: {:?}", e)
@@ -189,7 +189,7 @@ fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
     });
 }
 
-fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
+fn render_account(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
             "Creating account for wallet: {}",
@@ -237,23 +237,13 @@ fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
                 .labelled_by(label.id);
         });
         ui.horizontal(|ui| {
-            if ui.button("Create").clicked() {
+            if ui.button("Save").clicked() {
                 app.state = DkkState::Wallet;
                 let pool_ref = app.pool.clone();
                 let ca_copy = app.working_account.clone();
                 tokio::spawn(async move {
-                    match Account::create(
-                        ca_copy.wallet_id,
-                        ca_copy.name,
-                        ca_copy.acc_type,
-                        &pool_ref,
-                    )
-                    .await
-                    {
-                        Ok(_) => {}
-                        Err(e) => {
-                            todo!("unhandled error: {:?}", e)
-                        }
+                    if ca_copy.upsert(&pool_ref).await.is_err() {
+                        todo!("unhandled error");
                     }
                 });
             }
@@ -303,18 +293,8 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
                 let pool_ref = app.pool.clone();
                 let ct_copy = app.working_transaction.clone();
                 tokio::spawn(async move {
-                    match Transaction::create(
-                        ct_copy.account_id,
-                        f32::from_str(&ct_copy.amount.to_string()).unwrap(),
-                        ct_copy.trx_type,
-                        &pool_ref,
-                    )
-                    .await
-                    {
-                        Ok(_) => {}
-                        Err(e) => {
-                            todo!("unhandled error: {:?}", e)
-                        }
+                    if ct_copy.upsert(&pool_ref).await.is_err() {
+                        todo!("unhandled error");
                     }
                 });
             }

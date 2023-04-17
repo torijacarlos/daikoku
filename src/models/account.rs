@@ -21,28 +21,39 @@ pub struct Account {
 }
 
 impl Account {
-    pub async fn create(
-        wallet_id: u32,
-        name: String,
-        acc_type: AccountType,
-        pool: &Pool<MySql>,
-    ) -> DkkResult<Self> {
-        let result = sqlx::query!(
-            r#"SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?"#,
-            acc_type.as_str()
+    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<Self> {
+        let id: u32;
+        let acc_type = sqlx::query!(
+            "SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?",
+            self.acc_type.as_str()
         )
         .fetch_one(&mut pool.acquire().await?)
         .await?;
-        let result = sqlx::query!(
-            r#"INSERT INTO ACCOUNT (wallet_id, name, type_id) VALUES (?, ?, ?)"#,
-            wallet_id,
-            name,
-            result.id
-        )
-        .execute(&mut pool.acquire().await?)
-        .await?;
-
-        Self::get(result.last_insert_id() as u32, pool).await
+        if self.id.is_some() {
+            sqlx::query!(
+                r#"
+            UPDATE ACCOUNT 
+            SET name = ?, type_id = ?
+            WHERE id = ?"#,
+                self.name,
+                acc_type.id,
+                self.id
+            )
+            .execute(&mut pool.acquire().await?)
+            .await?;
+            id = self.id.unwrap();
+        } else {
+            let result = sqlx::query!(
+                r#"INSERT INTO ACCOUNT (wallet_id, name, type_id) VALUES (?, ?, ?)"#,
+                self.wallet_id,
+                self.name,
+                acc_type.id,
+            )
+            .execute(&mut pool.acquire().await?)
+            .await?;
+            id = result.last_insert_id() as u32;
+        }
+        Self::get(id, pool).await
     }
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
@@ -69,29 +80,6 @@ impl Account {
             acc_type: account_row.acc_type,
             transactions: vec![],
         })
-    }
-
-    pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
-        let acc_type = sqlx::query!(
-            "select id from LU_ACCOUNT_TYPE where value=?",
-            self.acc_type.as_str()
-        )
-        .fetch_one(&mut pool.acquire().await?)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            UPDATE ACCOUNT 
-            SET name = ?, type_id = ?
-            WHERE id = ?"#,
-            self.name,
-            acc_type.id,
-            self.id
-        )
-        .execute(&mut pool.acquire().await?)
-        .await?;
-
-        Ok(())
     }
 }
 
