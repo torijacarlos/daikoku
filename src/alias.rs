@@ -20,7 +20,12 @@ impl<T> DaikokuThreadData<T> {
         self.0.clone()
     }
 
-    pub fn try_lock(&self) -> Result<MutexGuard<Option<T>>, TryLockError<MutexGuard<Option<T>>>> {
-        self.0.try_lock()
+    pub fn get(&self, mut v: impl FnMut(Option<&mut T>)) {
+        if let Ok(mut wallet_guard) = self.0.try_lock() {
+            match &mut *wallet_guard {
+                Some(ref mut w) => v(Some(w)),
+                _ => v(None),
+            };
+        }
     }
 }

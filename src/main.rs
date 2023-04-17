@@ -12,8 +12,6 @@ use error::DaikokuError;
 use crate::models::Wallet;
 use crate::settings::Settings;
 
-
-
 struct Daikoku {
     wallet: DaikokuThreadData<Wallet>,
     settings: Arc<Settings>,
@@ -28,21 +26,24 @@ impl Daikoku {
             frame: 0,
         }
     }
+}
 
-    fn load_wallet(&self) {
-        let wallet_ref = self.wallet.clone();
-        let set_ref = self.settings.clone();
-
-        tokio::spawn(async move {
-            if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
-                let result = Wallet::get(1, pool).await;
-                if let Ok(mut mutex_lock) = wallet_ref.lock() {
-                    *mutex_lock = result.ok();
-                }
+fn render_wallet(app: &mut Daikoku, ui: &mut egui::Ui) {
+    let wallet_ref = app.wallet.clone();
+    let set_ref = app.settings.clone();
+    tokio::spawn(async move {
+        if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
+            let result = Wallet::get(1, pool).await;
+            if let Ok(mut mutex_lock) = wallet_ref.lock() {
+                *mutex_lock = result.ok();
             }
-        });
-
-    }
+        }
+    });
+    app.wallet.get(|w: Option<&mut Wallet>| {
+        if let Some(w) = w {
+            ui.label(format!("Wallet '{}'", w.id));
+        }
+    });
 }
 
 #[tokio::main]
@@ -62,15 +63,10 @@ impl eframe::App for Daikoku {
             ui.heading("Daikoku");
             ui.label(format!("Frame '{}'", self.frame));
 
-            self.load_wallet();
-            if let Ok(mut wallet_guard) = self.wallet.try_lock() {
-                match &mut *wallet_guard {
-                    Some(ref w) => {
-                        ui.label(format!("Wallet '{}'", w.id));
-                    }
-                    _ => {}
-                };
-            }
+            render_wallet(self, ui);
+
+            // (torijacarlos:todo) Render net worth
+
             self.frame += 1;
         });
     }
