@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
@@ -80,29 +82,12 @@ impl Account {
 
         Ok(())
     }
-
-    pub async fn get_transactions(
-        &self,
-        pool: &Pool<MySql>,
-    ) -> DaikokuResult<Vec<Transaction>> {
-        sqlx::query_as!(
-            Transaction,
-            r#"SELECT  
-            t.id, amount, execution_date, lu.value as "trx_type: TransactionType", account_id
-            FROM TRANSACTION t
-            JOIN LU_TRANSACTION_TYPE lu 
-            ON t.type_id = lu.id
-            WHERE account_id = ?"#,
-            self.id
-        )
-        .fetch_all(&mut pool.acquire().await?)
-        .await
-        .map_err(DaikokuError::DatabaseError)
-    }
-
 }
 
-pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transaction>) -> DaikokuResult<f32> {
+pub fn get_account_balance(
+    acc_type: &AccountType,
+    transactions: &Vec<Transaction>,
+) -> DaikokuResult<f32> {
     let mut total: f32 = 0.0;
     let multiplier = match acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
@@ -115,4 +100,23 @@ pub fn get_account_balance(acc_type: &AccountType, transactions: &Vec<Transactio
         }
     }
     Ok(total)
+}
+
+pub async fn get_account_transactions(
+    account_id: u32,
+    pool: &Pool<MySql>,
+) -> DaikokuResult<Vec<Transaction>> {
+    sqlx::query_as!(
+        Transaction,
+        r#"SELECT  
+        t.id, amount, execution_date, lu.value as "trx_type: TransactionType", account_id
+        FROM TRANSACTION t
+        JOIN LU_TRANSACTION_TYPE lu 
+        ON t.type_id = lu.id
+        WHERE t.account_id = ?"#,
+        account_id
+    )
+    .fetch_all(&mut pool.acquire().await?)
+    .await
+    .map_err(DaikokuError::DatabaseError)
 }
