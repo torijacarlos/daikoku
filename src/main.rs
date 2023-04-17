@@ -11,7 +11,8 @@ use eframe::egui;
 use egui::RichText;
 use error::DkkError;
 use models::{
-    get_account_transactions, get_accounts_net_worth, get_wallet_accounts, Account, TransactionType,
+    get_account_transactions, get_accounts_net_worth, get_wallet_accounts, Account, Transaction,
+    TransactionType,
 };
 use sqlx::{MySql, Pool};
 
@@ -21,16 +22,15 @@ use crate::settings::Settings;
 enum DkkState {
     // @todo:init-state: There needs to be an initial state, perhaps to select a wallet or,
     // eventually, to perform a login operation Login/SelectWallet,
-
-    // @todo:wallet-state: Keep the wallet struct within this enum?
     Wallet,
     CreateTransaction,
 }
 
 struct Dkk {
-    // @todo:wallet-state: this dissappears
     wallet: DkkThreadData<Wallet>,
+
     pool: Arc<Pool<MySql>>,
+
     force_reload: bool,
     fps: f32,
     frame: u128,
@@ -131,7 +131,10 @@ impl eframe::App for Dkk {
 
 fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
-        ui.label(format!("Creating Transaction for account: {}", app.account_id));
+        ui.label(format!(
+            "Creating Transaction for account: {}",
+            app.account_id
+        ));
     });
 
     ui.group(|ui| {
@@ -158,6 +161,19 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
         ui.horizontal(|ui| {
             if ui.button("Create").clicked() {
                 app.state = DkkState::Wallet;
+                if let Ok(amount) = app.amount_str.parse::<f32>() {
+                    let pool_ref = app.pool.clone();
+                    let acc_id = app.account_id.clone();
+                    let trx_type = app.trx_type.clone();
+                    tokio::spawn(async move {
+                        match Transaction::create(acc_id, amount, trx_type, &pool_ref).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                todo!("unhandled error: {:?}", e)
+                            }
+                        }
+                    });
+                }
             }
         });
     });
@@ -202,6 +218,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         ui.group(|ui| {
                                             if ui.button("Create transaction").clicked() {
                                                 app.state = DkkState::CreateTransaction;
+                                                app.account_id = acc.id;
                                             }
                                         });
                                     }
