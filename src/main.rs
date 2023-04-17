@@ -172,7 +172,7 @@ fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
             });
         });
         ui.horizontal(|ui| {
-            if ui.button("Save").clicked() {
+            if ui.button("Create").clicked() {
                 let pool_ref = app.pool.clone();
                 tokio::spawn(async move {
                     if Wallet::upsert(&pool_ref).await.is_err() {
@@ -187,7 +187,12 @@ fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
 fn render_account(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
-            "Creating account for wallet: {}",
+            "{} Account for Wallet: {}",
+            if app.working_account.id.is_some() {
+                "Editing"
+            } else {
+                "Creating"
+            },
             app.working_account.wallet_id
         ));
     });
@@ -249,7 +254,12 @@ fn render_account(ui: &mut egui::Ui, app: &mut Dkk) {
 fn render_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
         ui.label(format!(
-            "Creating Transaction for account: {}",
+            "{} Transaction for Account: {}",
+            if app.working_transaction.id.is_some() {
+                "Editing"
+            } else {
+                "Creating"
+            },
             app.working_transaction.account_id
         ));
     });
