@@ -9,6 +9,12 @@ pub enum DkkUiState {
     Init,
     WalletView,
     TransactionView,
+    // @todo: This states usage and values will dissappear, but i'll still keep an state
+    // the usage would be, for example, avoid the boolean param in render_account (editing)
+    // and instead use the state. in that case the State could have an struct
+    // AccountEdition { id: Uuid }
+    // Same for Transaction and Wallet 
+    // the current render function will most likely dissappear as it is
 }
 
 pub fn render(gui: &mut egui::Ui, app: &mut Dkk) {
