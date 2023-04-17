@@ -7,11 +7,14 @@ use super::TransactionType;
 
 #[derive(Debug)]
 pub struct Transaction {
-    pub id: u32,
+    // db data
+    pub id: Option<u32>,
+
+    // data
+    pub account_id: u32,
     pub amount: BigDecimal,
     pub execution_date: DateTime<Utc>,
     pub trx_type: TransactionType,
-    pub account_id: u32,
 }
 
 impl Transaction {
@@ -44,7 +47,7 @@ impl Transaction {
             Self,
             r#"
             SELECT 
-            t.id, amount, execution_date, lu.value as "trx_type: TransactionType", account_id
+            t.id as "id?", amount, execution_date, lu.value as "trx_type: TransactionType", account_id
             FROM TRANSACTION t
             JOIN LU_TRANSACTION_TYPE lu
             ON lu.id = t.type_id

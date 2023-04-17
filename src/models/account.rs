@@ -6,14 +6,17 @@ use crate::{alias::DkkResult, error::DkkError};
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Default)]
 pub struct Account {
-    pub id: u32,
+    // db data
+    pub id: Option<u32>,
+    pub created_date: Option<DateTime<Utc>>,
+    pub updated_date: Option<DateTime<Utc>>,
+
+    // data
     pub wallet_id: u32,
     pub name: String,
     pub acc_type: AccountType,
-    pub created_date: DateTime<Utc>,
-    pub updated_date: DateTime<Utc>,
 }
 
 impl Account {
@@ -46,7 +49,7 @@ impl Account {
             Self,
             r#"
             SELECT 
-            a.id, name, wallet_id, created_date, updated_date, lu.value as "acc_type: AccountType"
+            a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
             FROM ACCOUNT a 
             JOIN LU_ACCOUNT_TYPE lu 
             ON a.type_id = lu.id
@@ -104,7 +107,7 @@ pub async fn get_account_transactions(
     sqlx::query_as!(
         Transaction,
         r#"SELECT  
-        t.id, amount, execution_date, lu.value as "trx_type: TransactionType", account_id
+        t.id as "id?", amount, execution_date, lu.value as "trx_type: TransactionType", account_id
         FROM TRANSACTION t
         JOIN LU_TRANSACTION_TYPE lu 
         ON t.type_id = lu.id

@@ -105,7 +105,7 @@ fn load_wallet(app: &mut Dkk, wallet_id: u32) {
             if let Some(ref mut wallet) = wallet {
                 if let Ok(accounts) = get_wallet_accounts(wallet_id, &pool_ref).await {
                     for acc in accounts {
-                        let ts = get_account_transactions(acc.id, &pool_ref).await;
+                        let ts = get_account_transactions(acc.id.unwrap(), &pool_ref).await;
 
                         wallet
                             .accounts
@@ -362,7 +362,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                         for acc in accounts {
                             ui.group(|ui| {
                                 ui.vertical(|ui| {
-                                    ui.label(format!("Id: {}", acc.id));
+                                    ui.label(format!("Id: {}", acc.id.unwrap()));
                                     ui.label(format!("Name: {}", acc.name));
                                     ui.label(format!("Type: {:?}", acc.acc_type));
                                     ui.label(format!(
@@ -380,7 +380,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                     if let Some(transactions) = wallet.accounts.get(acc) {
                                         for t in transactions {
                                             ui.group(|ui| {
-                                                ui.label(format!("Transaction id: {}", t.id));
+                                                ui.label(format!("Transaction id: {}", t.id.unwrap()));
                                                 ui.label(format!("Amount: {:?}", t.amount));
                                                 ui.label(format!("Trx Type: {:?}", t.trx_type));
                                             });
@@ -389,7 +389,7 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                             if ui.button("Create transaction").clicked() {
                                                 app.state = DkkState::CreateTransaction;
                                                 app.create_transaction = CreateTransaction {
-                                                    account_id: acc.id,
+                                                    account_id: acc.id.unwrap(),
                                                     ..Default::default()
                                                 };
                                             }

@@ -9,9 +9,11 @@ use super::{get_account_balance, Account, AccountType, Transaction};
 
 #[derive(Debug)]
 pub struct Wallet {
+    // db data
     pub id: u32,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
+
     // @todo:remove-hash-map: transactions should just be a vec within the Account struct
     pub accounts: HashMap<Account, Vec<Transaction>>,
 }
@@ -56,7 +58,7 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
     sqlx::query_as!(
         Account,
         r#"SELECT  
-            a.id, name, wallet_id, created_date, updated_date, lu.value as "acc_type: AccountType"
+            a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
             FROM ACCOUNT a
             JOIN LU_ACCOUNT_TYPE lu 
             ON a.type_id = lu.id
