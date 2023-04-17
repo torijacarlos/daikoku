@@ -1,15 +1,18 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
 use crate::{alias::DaikokuResult, error::DaikokuError};
 
-use super::{get_account_balance, get_account_transactions, Account, AccountType};
+use super::{get_account_balance, get_account_transactions, Account, AccountType, Transaction};
 
 #[derive(Debug)]
 pub struct Wallet {
     pub id: u32,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
+    pub accounts: HashMap<Account, Vec<Transaction>>,
 }
 
 unsafe impl Send for Wallet {}
@@ -24,14 +27,19 @@ impl Wallet {
     }
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
-        sqlx::query_as!(
-            Self,
+        let wallet = sqlx::query!(
             r#"SELECT id, created_date, updated_date FROM WALLET WHERE id = ?"#,
             id
         )
         .fetch_one(&mut pool.acquire().await?)
-        .await
-        .map_err(DaikokuError::DatabaseError)
+        .await?;
+
+        Ok(Self {
+            id: wallet.id,
+            created_date: wallet.created_date,
+            updated_date: wallet.updated_date,
+            accounts: HashMap::new(),
+        })
     }
 }
 

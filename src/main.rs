@@ -3,7 +3,6 @@ mod error;
 mod models;
 mod settings;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -11,7 +10,7 @@ use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
 use egui::RichText;
 use error::DaikokuError;
-use models::{get_account_transactions, get_wallet_accounts, Account, Transaction};
+use models::{get_account_transactions, get_wallet_accounts};
 use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
@@ -20,8 +19,9 @@ use crate::settings::Settings;
 struct Daikoku {
     wallet: DaikokuThreadData<Wallet>,
 
-    accounts: DaikokuThreadData<HashMap<Account, Vec<Transaction>>>,
     pool: Arc<Pool<MySql>>,
+
+    force_reload: bool,
     frame: u128,
     frame_time: Instant,
     fps: f32,
@@ -33,8 +33,8 @@ impl Daikoku {
         let pool = Arc::new(settings.get_db_conn_pool());
         Self {
             wallet: DaikokuThreadData::empty(),
-            accounts: DaikokuThreadData::new(HashMap::new()),
             pool,
+            force_reload: false,
             frame: 0,
             frame_time: Instant::now(),
             fps: 0.0,
@@ -42,54 +42,31 @@ impl Daikoku {
     }
 }
 
-fn load_wallet(app: &Daikoku, wallet_id: u32) {
+fn load_wallet(app: &mut Daikoku, wallet_id: u32) {
     let wallet_ref = app.wallet.clone();
     let pool_ref = app.pool.clone();
-    if !app.wallet.is_set() {
+    if !app.wallet.is_set() || app.force_reload {
+        app.force_reload = false;
         tokio::spawn(async move {
-            let wallet = Wallet::get(wallet_id, &pool_ref).await.ok();
-            if let Ok(mut wallet_guard) = wallet_ref.lock() {
-                *wallet_guard = wallet;
-            }
-        });
-    }
-}
+            let mut wallet = Wallet::get(wallet_id, &pool_ref).await.ok();
+            if let Some(ref mut wallet) = wallet {
+                if let Ok(accounts) = get_wallet_accounts(wallet_id, &pool_ref).await {
+                    for acc in accounts {
+                        let ts = get_account_transactions(acc.id, &pool_ref).await;
 
-fn load_accounts(app: &Daikoku, wallet_id: u32) {
-    let pool_ref = app.pool.clone();
-    let accounts_ref = app.accounts.clone();
-
-    if app.wallet.is_set() {
-        tokio::spawn(async move {
-            let mut map: HashMap<Account, Vec<Transaction>> = HashMap::new();
-            let accounts = get_wallet_accounts(wallet_id, &pool_ref).await.ok();
-            if let Some(accounts) = accounts {
-                for acc in accounts {
-                    let trxs = get_account_transactions(acc.id, &pool_ref).await;
-                    if let Ok(trxs) = trxs {
-                        map.insert(acc, trxs);
+                        wallet
+                            .accounts
+                            .insert(acc, if let Ok(ts) = ts { ts } else { vec![] });
                     }
                 }
+            }
 
-                if let Ok(mut accounts_guard) = accounts_ref.lock() {
-                    *accounts_guard = Some(map);
-                }
+            if let Ok(mut wallet_guard) = wallet_ref.lock() {
+                *wallet_guard = wallet;
+                println!("REloaded!");
             }
         });
     }
-}
-
-fn clear_data(app: &Daikoku) {
-    let wallet_ref = app.wallet.clone();
-    let accounts_ref = app.accounts.clone();
-    tokio::spawn(async move {
-        if let Ok(mut guard) = wallet_ref.lock() {
-            *guard = None;
-        }
-        if let Ok(mut guard) = accounts_ref.lock() {
-            *guard = Some(HashMap::new());
-        }
-    });
 }
 
 #[tokio::main]
@@ -107,7 +84,6 @@ impl eframe::App for Daikoku {
             // load data
             let wallet_id = 1;
             load_wallet(self, wallet_id);
-            load_accounts(self, wallet_id);
 
             // render data
 
@@ -119,39 +95,47 @@ impl eframe::App for Daikoku {
                             if let Some(w) = w {
                                 ui.label(format!("Id: {}", w.id));
                                 ui.label(format!("Created date: {:?}", w.created_date));
+
+                                ui.vertical(|ui| {
+                                    ui.label(RichText::new("Accounts").strong());
+
+                                    for acc in w.accounts.keys() {
+                                        ui.group(|ui| {
+                                            ui.vertical(|ui| {
+                                                ui.label(format!("Account Id: {}", acc.id));
+                                                ui.label(format!(
+                                                    "Account type: {:?}",
+                                                    acc.acc_type
+                                                ));
+                                                ui.label(format!(
+                                                    "Account Created date: {:?}",
+                                                    acc.created_date
+                                                ));
+                                                if let Some(transactions) = w.accounts.get(acc) {
+                                                    for t in transactions {
+                                                        ui.group(|ui| {
+                                                            ui.label(format!(
+                                                                "Transaction id: {}",
+                                                                t.id
+                                                            ));
+                                                            ui.label(format!(
+                                                                "Amount: {:?}",
+                                                                t.amount
+                                                            ));
+                                                            ui.label(format!(
+                                                                "Trx Type: {:?}",
+                                                                t.trx_type
+                                                            ));
+                                                        });
+                                                    }
+                                                }
+                                            });
+                                        });
+                                    }
+                                });
                             }
                         });
                     });
-                });
-            });
-
-            ui.vertical(|ui| {
-                ui.label(RichText::new("Accounts").strong());
-
-                self.accounts.get(|accounts| {
-                    if let Some(accounts) = accounts {
-                        for acc in accounts.keys() {
-                            ui.group(|ui| {
-                                ui.vertical(|ui| {
-                                    ui.label(format!("Account Id: {}", acc.id));
-                                    ui.label(format!("Account type: {:?}", acc.acc_type));
-                                    ui.label(format!(
-                                        "Account Created date: {:?}",
-                                        acc.created_date
-                                    ));
-                                    if let Some(transactions) = accounts.get(acc) {
-                                        for t in transactions {
-                                            ui.group(|ui| {
-                                                ui.label(format!("Transaction id: {}", t.id));
-                                                ui.label(format!("Amount: {:?}", t.amount));
-                                                ui.label(format!("Trx Type: {:?}", t.trx_type));
-                                            });
-                                        }
-                                    }
-                                });
-                            });
-                        }
-                    }
                 });
             });
 
@@ -166,6 +150,7 @@ impl eframe::App for Daikoku {
             self.fps = self.frame as f32;
             self.frame = 0;
             self.frame_time = Instant::now();
+            self.force_reload = true;
         }
         ctx.request_repaint();
     }
