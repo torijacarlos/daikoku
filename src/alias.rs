@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
+use std::sync::{Arc, Mutex};
 
 use crate::error::DaikokuError;
 
@@ -8,10 +8,6 @@ pub type ThreadData<T> = Arc<Mutex<Option<T>>>;
 pub struct DaikokuThreadData<T>(pub ThreadData<T>);
 
 impl<T> DaikokuThreadData<T> {
-    pub fn new(v: T) -> Self {
-        Self(Arc::new(Mutex::new(Some(v))))
-    }
-
     pub fn empty() -> Self {
         Self(Arc::new(Mutex::new(None)))
     }

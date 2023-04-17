@@ -29,19 +29,20 @@ impl Daikoku {
 }
 
 fn render_wallet(app: &mut Daikoku, ui: &mut egui::Ui) {
-    let wallet_ref = app.wallet.clone();
-    let set_ref = app.settings.clone();
-    tokio::spawn(async move {
-        if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
-            let result = Wallet::get(1, pool).await;
-            if let Ok(mut mutex_lock) = wallet_ref.lock() {
-                *mutex_lock = result.ok();
-            }
-        }
-    });
     app.wallet.get(|w: Option<&mut Wallet>| {
         if let Some(w) = w {
             ui.label(format!("Wallet '{}'", w.id));
+        } else {
+            let wallet_ref = app.wallet.clone();
+            let set_ref = app.settings.clone();
+            tokio::spawn(async move {
+                if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
+                    let result = Wallet::get(1, pool).await;
+                    if let Ok(mut mutex_lock) = wallet_ref.lock() {
+                        *mutex_lock = result.ok();
+                    }
+                }
+            });
         }
     });
 }
