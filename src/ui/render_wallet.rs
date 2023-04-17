@@ -1,11 +1,11 @@
 use egui::RichText;
 
 use crate::{
-    models::{get_account_balance, get_accounts_net_worth, get_wallet_liquidity_index},
+    models::{get_accounts_net_worth, get_wallet_liquidity_index, Account},
     storage, Dkk,
 };
 
-use super::DkkUiState;
+use super::{render_account::render_account, DkkUiState};
 
 pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
     if let Some(ref mut wallet) = app.wallet {
@@ -22,6 +22,7 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                     });
                 });
                 ui.group(|ui| {
+                    ui.label(format!("Id: {:?}", wallet.id));
                     ui.label(format!("Alias: {}", wallet.alias));
                     ui.label(format!("Created date: {:?}", wallet.created_date));
                     ui.label(format!(
@@ -40,20 +41,18 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
 
                     ui.label(RichText::new("Accounts").strong());
                     if ui.button("Create account").clicked() {
-                        app.state = DkkUiState::AccountView;
+                        let acc = Account::new();
+                        wallet.accounts.push(acc.clone());
+                        app.working_account_id = acc.id;
                     }
-                    for acc in &wallet.accounts {
+                    for acc in wallet.accounts.iter_mut() {
                         ui.group(|ui| {
                             ui.vertical(|ui| {
-                                ui.label(format!("Name: {}", acc.name));
-                                ui.label(format!("Type: {:?}", acc.acc_type));
-                                ui.label(format!("Balance: {:?}", get_account_balance(acc)));
-                                ui.label(format!("Balance date: {}", acc.balance_date));
-                                ui.label(format!("Created date: {}", acc.created_date.unwrap()));
                                 if ui.button("Edit account").clicked() {
-                                    app.state = DkkUiState::AccountView;
-                                    // @todo: mutable reference to account
+                                    app.working_account_id = acc.id;
                                 }
+                                render_account(ui, acc, acc.id == app.working_account_id);
+
                                 for t in &acc.transactions {
                                     ui.group(|ui| {
                                         ui.label(format!("Amount: {:?}", t.amount));

@@ -10,6 +10,7 @@ use super::DkkUiState;
 pub fn render_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     if let Some(ref mut transaction) = app.working_transaction {
         ui.group(|ui| {
+            ui.label(format!("Id: {:?}", transaction.id));
             ui.horizontal(|ui| {
                 let label = ui.label("Amount: ".to_string());
                 let mut text_amount = transaction.amount.clone().to_string();

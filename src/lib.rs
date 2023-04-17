@@ -11,9 +11,10 @@ use std::{
 };
 
 use egui::Align;
-use models::{Account, Transaction, Wallet};
+use models::{Transaction, Wallet};
 use settings::Settings;
 use ui::{handle_input, render, DkkUiState};
+use uuid::Uuid;
 
 pub struct Dkk {
     pub pin: String,
@@ -24,7 +25,7 @@ pub struct Dkk {
     pub working_alias: String,
     pub crypt_key: String,
 
-    pub working_account: Option<Account>,
+    pub working_account_id: Option<Uuid>,
     pub working_transaction: Option<Transaction>,
 
     pub force_reload: bool,
@@ -43,7 +44,7 @@ impl Dkk {
             state: DkkUiState::Init,
             available_wallets: vec![],
             working_alias: String::new(),
-            working_account: None,
+            working_account_id: None,
             working_transaction: None,
             crypt_key: settings.crypt_key,
             force_reload: false,

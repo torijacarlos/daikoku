@@ -22,7 +22,8 @@ pub fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
             let label = ui.label("Alias: ".to_string());
             ui.text_edit_singleline(&mut app.working_alias)
                 .labelled_by(label.id);
-            if ui.button("Create").clicked() {
+            if ui.button("Create").clicked() && app.working_alias.len() > 2 {
+                app.state = DkkUiState::WalletView;
                 app.wallet = Some(Wallet {
                     alias: app.working_alias.to_string(),
                     ..Default::default()

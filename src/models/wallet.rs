@@ -1,10 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use super::{get_account_balance, Account, AccountType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Wallet {
+    pub id: Option<Uuid>,
     pub alias: String,
     pub accounts: Vec<Account>,
 

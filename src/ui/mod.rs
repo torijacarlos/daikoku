@@ -8,7 +8,6 @@ use crate::Dkk;
 pub enum DkkUiState {
     Init,
     WalletView,
-    AccountView,
     TransactionView,
 }
 
@@ -20,14 +19,13 @@ pub fn render(gui: &mut egui::Ui, app: &mut Dkk) {
     match app.state {
         DkkUiState::Init => render_init::render_init(gui, app),
         DkkUiState::WalletView => render_wallet::render_wallet(gui, app),
-        DkkUiState::AccountView => render_account::render_account(gui, app),
         DkkUiState::TransactionView => render_transaction::render_transaction(gui, app),
     };
 }
 
 pub fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
     match app.state {
-        DkkUiState::TransactionView | DkkUiState::AccountView => {
+        DkkUiState::TransactionView => {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Escape) {
                     app.state = DkkUiState::WalletView;
@@ -37,9 +35,9 @@ pub fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
         DkkUiState::WalletView => {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Escape) {
-                    app.state = DkkUiState::Init;
-                    app.working_alias = String::new();
-                    app.wallet = None;
+                    //app.state = DkkUiState::Init;
+                    app.working_account_id = None;
+                    // app.wallet = None;
                 }
             });
         }

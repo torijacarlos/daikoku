@@ -11,6 +11,10 @@ use crate::{alias::DkkResult, error::DkkError, models::Wallet, ui::DkkUiState, D
 pub fn load(app: &mut Dkk) {
     if let DkkUiState::Init = app.state {
         app.available_wallets = get_all_wallets_locations();
+    } else {
+        // autosave
+        let wallet = &app.wallet.clone().unwrap();
+        export(wallet, &app.pin, &app.crypt_key);
     }
 }
 
@@ -31,7 +35,7 @@ pub fn export(wallet: &Wallet, pin: &String, key: &String) {
         let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
         if let Ok(ciphertext) = cipher.encrypt(nonce, ws.as_bytes()) {
             if let Ok(mut location) = get_storage_location() {
-                let file_name = wallet.alias.to_lowercase().replace(" ", "_");
+                let file_name = wallet.alias.to_lowercase().replace(' ', "_");
                 location.push(file_name);
                 let _ = std::fs::write(location, ciphertext);
             }
