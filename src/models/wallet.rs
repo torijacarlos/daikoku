@@ -1,14 +1,15 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
 
 use crate::{alias::DkkResult, error::DkkError};
 
 use super::{get_account_balance, Account, AccountType};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Wallet {
     // db data
-    pub id: u32,
+    pub id: Option<u32>,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
     pub accounts: Vec<Account>,
@@ -17,12 +18,25 @@ pub struct Wallet {
 unsafe impl Send for Wallet {}
 
 impl Wallet {
-    pub async fn upsert(pool: &Pool<MySql>) -> DkkResult<Self> {
-        let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
+    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
+
+        if self.id.is_some() {
+            sqlx::query!(
+                r#"
+                UPDATE WALLET 
+                SET id = ?
+                WHERE id = ?"#,
+                self.id,
+                self.id
+            )
             .execute(&mut pool.acquire().await?)
             .await?;
-
-        Self::get(result.last_insert_id() as u32, pool).await
+        } else {
+            sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
+                .execute(&mut pool.acquire().await?)
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
@@ -34,7 +48,7 @@ impl Wallet {
         .await?;
 
         Ok(Self {
-            id: wallet.id,
+            id: Some(wallet.id),
             created_date: wallet.created_date,
             updated_date: wallet.updated_date,
             accounts: vec![],

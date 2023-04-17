@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use serde::{Serialize, Deserialize};
 use sqlx::{types::BigDecimal, MySql, Pool};
 
 use crate::{alias::DkkResult, error::DkkError};
@@ -6,7 +7,7 @@ use crate::{alias::DkkResult, error::DkkError};
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Account {
     // db data
     pub id: Option<u32>,

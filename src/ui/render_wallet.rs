@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use egui::RichText;
 
 use crate::{
@@ -5,7 +6,7 @@ use crate::{
         get_account_balance, get_accounts_net_worth, get_wallet_liquidity_index, Account,
         Transaction, Wallet,
     },
-    Dkk,
+    storage, Dkk,
 };
 
 use super::DkkUiState;
@@ -16,8 +17,11 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
             ui.vertical(|ui| {
                 ui.label(RichText::new("Wallet information").strong());
                 ui.vertical(|ui| {
+                    if ui.button("Export Wallet to file").clicked() {
+                        storage::export(wallet);
+                    }
                     ui.group(|ui| {
-                        ui.label(format!("Id: {}", wallet.id));
+                        ui.label(format!("Id: {}", wallet.id.unwrap()));
                         ui.label(format!("Created date: {:?}", wallet.created_date));
                         ui.label(format!(
                             "Net Worth: {:?}",
@@ -37,7 +41,8 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                         if ui.button("Create account").clicked() {
                             app.state = DkkUiState::AccountView;
                             app.working_account = Account {
-                                wallet_id: wallet.id,
+                                wallet_id: wallet.id.unwrap(),
+                                balance_date: DateTime::default(),
                                 ..Default::default()
                             };
                         }
@@ -74,6 +79,7 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                             app.state = DkkUiState::TransactionView;
                                             app.working_transaction = Transaction {
                                                 account_id: acc.id.unwrap(),
+                                                execution_date: DateTime::default(),
                                                 ..Default::default()
                                             };
                                         }

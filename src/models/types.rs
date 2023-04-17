@@ -1,6 +1,7 @@
+use serde::{Serialize, Deserialize};
 use sqlx::{database::HasValueRef, Database, Decode};
 
-#[derive(Hash, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub enum AccountType {
     #[default]
     Asset,
@@ -52,7 +53,7 @@ impl TryFrom<String> for AccountType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub enum TransactionType {
     #[default]
     Debit,

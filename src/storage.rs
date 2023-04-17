@@ -1,4 +1,7 @@
+use sqlx::{MySql, Pool};
+
 use crate::{
+    alias::DkkResult,
     models::{get_account_transactions, get_all_wallet_ids, get_wallet_accounts, Wallet},
     ui::DkkUiState,
     Dkk,
@@ -11,6 +14,39 @@ pub fn load(app: &mut Dkk) {
     if let Some(wallet_id) = app.working_wallet {
         load_wallet(app, wallet_id);
     }
+}
+
+pub fn export(wallet: &Wallet) {
+    let mut location = home::home_dir().unwrap();
+    location.push("atelier");
+    let _ = std::fs::create_dir(&location);
+    location.push(".daikoku");
+    let wallet_string = ron::to_string(wallet);
+    if let Ok(ws) = wallet_string {
+        let _ = std::fs::write(location, ws);
+    }
+}
+
+pub async fn import(pool: &Pool<MySql>) -> DkkResult<()> {
+    let mut location = home::home_dir().unwrap();
+    location.push("atelier");
+    location.push(".daikoku");
+    // @todo: this is nasty. Do only three queries. One insert for the wallet, one batch insert
+    // for accounts, and one for transactions
+    if let Ok(wallet_string) = std::fs::read_to_string(location) {
+        let mut wallet: Wallet = ron::from_str(&wallet_string).unwrap();
+        wallet.id = None;
+        wallet.upsert(pool).await?;
+        for mut acc in wallet.accounts {
+            acc.id = None;
+            acc.upsert(pool).await?;
+            for mut t in acc.transactions {
+                t.id = None;
+                t.upsert(pool).await?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn load_available_wallets(app: &mut Dkk) {

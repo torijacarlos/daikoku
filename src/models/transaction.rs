@@ -1,11 +1,12 @@
 use chrono::{DateTime, Utc};
+use serde::{Serialize, Deserialize};
 use sqlx::{types::BigDecimal, MySql, Pool};
 
 use crate::alias::DkkResult;
 
 use super::TransactionType;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     // db data
     pub id: Option<u32>,
