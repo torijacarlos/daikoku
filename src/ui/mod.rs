@@ -39,6 +39,7 @@ pub fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
                 if input.key_pressed(egui::Key::Escape) {
                     app.state = DkkUiState::Init;
                     app.working_wallet = None;
+                    app.working_alias = String::new();
                     let wallet_ref = app.wallet.clone();
                     if let Ok(mut guard) = wallet_ref.lock() {
                         *guard = None;

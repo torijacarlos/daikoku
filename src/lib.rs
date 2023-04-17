@@ -21,8 +21,9 @@ pub struct Dkk {
     pub pin: String,
     pub wallet: DkkThreadData<Wallet>,
 
-    pub available_wallets: DkkThreadData<Vec<u32>>,
+    pub available_wallets: DkkThreadData<Vec<Wallet>>,
 
+    pub working_alias: String,
     pub working_wallet: Option<u32>,
     pub working_account: Account,
     pub working_transaction: Transaction,
@@ -45,6 +46,7 @@ impl Dkk {
             wallet: DkkThreadData::empty(),
             state: DkkUiState::Init,
             available_wallets: DkkThreadData::empty(),
+            working_alias: String::new(),
             working_wallet: None,
             working_account: Account::default(),
             working_transaction: Transaction::default(),

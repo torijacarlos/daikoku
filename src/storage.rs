@@ -7,7 +7,7 @@ use sqlx::{MySql, Pool};
 
 use crate::{
     alias::DkkResult,
-    models::{get_account_transactions, get_all_wallet_ids, get_wallet_accounts, Wallet},
+    models::{get_account_transactions, get_all_wallets, get_wallet_accounts, Wallet},
     ui::DkkUiState,
     Dkk,
 };
@@ -49,6 +49,7 @@ fn clear_ids(mut wallet: Wallet) -> Wallet {
     wallet
 }
 
+// @todo: suffix file with wallet alias
 pub fn export(wallet: &Wallet, pin: &String, key: &String) {
     let wallet = clear_ids(wallet.clone());
     let mut location = home::home_dir().unwrap();
@@ -67,6 +68,7 @@ pub fn export(wallet: &Wallet, pin: &String, key: &String) {
 }
 
 
+// @todo: should receive wallet alias?
 pub async fn import(pool: &Pool<MySql>, pin: &String, key: &String) -> DkkResult<()> {
     let cipher = Aes256Gcm::new(left_pad(key, 32).as_bytes().into());
     let pin = left_pad(pin, 12);
@@ -106,7 +108,7 @@ fn load_available_wallets(app: &mut Dkk) {
     let pool_ref = app.pool.clone();
 
     tokio::spawn(async move {
-        let wallets = get_all_wallet_ids(&pool_ref).await.ok();
+        let wallets = get_all_wallets(&pool_ref).await.ok();
 
         if let Ok(mut guard) = av_wallets_ref.lock() {
             *guard = wallets;

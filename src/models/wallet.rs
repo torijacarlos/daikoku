@@ -10,6 +10,7 @@ use super::{get_account_balance, Account, AccountType};
 pub struct Wallet {
     // db data
     pub id: Option<u32>,
+    pub alias: String,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
     pub accounts: Vec<Account>,
@@ -23,15 +24,15 @@ impl Wallet {
             sqlx::query!(
                 r#"
                 UPDATE WALLET 
-                SET id = ?
+                SET alias = ?
                 WHERE id = ?"#,
-                self.id,
+                self.alias,
                 self.id
             )
             .execute(&mut pool.acquire().await?)
             .await?;
         } else {
-            let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
+            let result = sqlx::query!(r#"INSERT INTO WALLET (alias) VALUES (?)"#, self.alias)
                 .execute(&mut pool.acquire().await?)
                 .await?;
             self.id = result.last_insert_id().try_into().ok();
@@ -41,7 +42,7 @@ impl Wallet {
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
         let wallet = sqlx::query!(
-            r#"SELECT id, created_date, updated_date FROM WALLET WHERE id = ?"#,
+            r#"SELECT id, alias, created_date, updated_date FROM WALLET WHERE id = ?"#,
             id
         )
         .fetch_one(&mut pool.acquire().await?)
@@ -49,6 +50,7 @@ impl Wallet {
 
         Ok(Self {
             id: Some(wallet.id),
+            alias: wallet.alias,
             created_date: wallet.created_date,
             updated_date: wallet.updated_date,
             accounts: vec![],
@@ -56,11 +58,22 @@ impl Wallet {
     }
 }
 
-pub async fn get_all_wallet_ids(pool: &Pool<MySql>) -> DkkResult<Vec<u32>> {
-    sqlx::query!(r#"SELECT id FROM WALLET"#)
+pub async fn get_all_wallets(pool: &Pool<MySql>) -> DkkResult<Vec<Wallet>> {
+    sqlx::query!(r#"SELECT id, alias, created_date, updated_date FROM WALLET"#,)
         .fetch_all(&mut pool.acquire().await?)
         .await
-        .map(|res| res.iter().map(|v| v.id).collect())
+        .map(|result| {
+            result
+                .iter()
+                .map(|wallet| Wallet {
+                    id: Some(wallet.id),
+                    alias: wallet.alias.clone(),
+                    created_date: wallet.created_date,
+                    updated_date: wallet.updated_date,
+                    accounts: vec![],
+                })
+                .collect()
+        })
         .map_err(DkkError::Database)
 }
 

@@ -28,6 +28,7 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                     });
                     ui.group(|ui| {
                         ui.label(format!("Id: {}", wallet.id.unwrap()));
+                        ui.label(format!("Alias: {}", wallet.alias));
                         ui.label(format!("Created date: {:?}", wallet.created_date));
                         ui.label(format!(
                             "Net Worth: {:?}",
