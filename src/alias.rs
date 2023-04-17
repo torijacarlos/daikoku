@@ -25,4 +25,16 @@ impl<T> DaikokuThreadData<T> {
             };
         };
     }
+
+    pub fn is_set(&self) -> bool {
+        let mut is_set = false;
+        let self_ref = self.0.clone();
+        if let Ok(guard) = self_ref.lock() {
+            is_set = match &*guard {
+                Some(_) => true,
+                _ => false,
+            };
+        }
+        is_set
+    }
 }

@@ -3,7 +3,7 @@ use sqlx::{MySql, Pool};
 
 use crate::{alias::DaikokuResult, error::DaikokuError};
 
-use super::{Account, AccountType, get_account_balance};
+use super::{get_account_balance, Account, AccountType};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -33,26 +33,31 @@ impl Wallet {
         .await
         .map_err(DaikokuError::DatabaseError)
     }
+}
 
-    pub async fn get_accounts(&self, pool: &Pool<MySql>) -> DaikokuResult<Vec<Account>> {
-        sqlx::query_as!(
-            Account,
-            r#"SELECT  
+pub async fn get_wallet_accounts(
+    wallet_id: u32,
+    pool: &Pool<MySql>,
+) -> DaikokuResult<Vec<Account>> {
+    sqlx::query_as!(
+        Account,
+        r#"SELECT  
             a.id, name, wallet_id, created_date, updated_date, lu.value as "acc_type: AccountType"
             FROM ACCOUNT a
             JOIN LU_ACCOUNT_TYPE lu 
             ON a.type_id = lu.id
             WHERE wallet_id = ?"#,
-            self.id
-        )
-        .fetch_all(&mut pool.acquire().await?)
-        .await
-        .map_err(DaikokuError::DatabaseError)
-    }
-
+        wallet_id
+    )
+    .fetch_all(&mut pool.acquire().await?)
+    .await
+    .map_err(DaikokuError::DatabaseError)
 }
 
-pub async fn get_accounts_net_worth(accounts: Vec<Account>, pool: &Pool<MySql>) -> DaikokuResult<f32> {
+pub async fn get_accounts_net_worth(
+    accounts: Vec<Account>,
+    pool: &Pool<MySql>,
+) -> DaikokuResult<f32> {
     let mut total = 0.0;
     for acc in accounts {
         total += get_account_balance(&acc.acc_type, &acc.get_transactions(&pool).await?)?;
