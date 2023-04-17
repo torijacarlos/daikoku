@@ -11,6 +11,7 @@ path = "src/main.rs"
 name = "daikoku"
 
 [dependencies]
+aes-gcm = "0.10.1"
 bigdecimal = { version = "0.3.0", features = [ "serde" ] }
 chrono = { version = "0.4.24", features = [ "serde" ] }
 config = "0.13.3"

@@ -60,7 +60,7 @@ pub fn render_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
             if ui.button("Save").clicked() {
                 app.state = DkkUiState::WalletView;
                 let pool_ref = app.pool.clone();
-                let ct_copy = app.working_transaction.clone();
+                let mut ct_copy = app.working_transaction.clone();
                 tokio::spawn(async move {
                     if ct_copy.upsert(&pool_ref).await.is_err() {
                         todo!("unhandled error");

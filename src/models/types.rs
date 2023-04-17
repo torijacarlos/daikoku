@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::{database::HasValueRef, Database, Decode};
 
 #[derive(Clone, PartialEq, Default, Debug, Serialize, Deserialize)]

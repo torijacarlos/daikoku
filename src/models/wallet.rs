@@ -6,7 +6,7 @@ use crate::{alias::DkkResult, error::DkkError};
 
 use super::{get_account_balance, Account, AccountType};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Wallet {
     // db data
     pub id: Option<u32>,
@@ -18,8 +18,7 @@ pub struct Wallet {
 unsafe impl Send for Wallet {}
 
 impl Wallet {
-    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
-
+    pub async fn upsert(&mut self, pool: &Pool<MySql>) -> DkkResult<()> {
         if self.id.is_some() {
             sqlx::query!(
                 r#"
@@ -32,9 +31,10 @@ impl Wallet {
             .execute(&mut pool.acquire().await?)
             .await?;
         } else {
-            sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
+            let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
                 .execute(&mut pool.acquire().await?)
                 .await?;
+            self.id = result.last_insert_id().try_into().ok();
         }
         Ok(())
     }

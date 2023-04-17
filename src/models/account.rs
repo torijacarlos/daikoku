@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::{types::BigDecimal, MySql, Pool};
 
 use crate::{alias::DkkResult, error::DkkError};
@@ -25,7 +25,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
+    pub async fn upsert(&mut self, pool: &Pool<MySql>) -> DkkResult<()> {
         let acc_type = sqlx::query!(
             "SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?",
             self.acc_type.as_str()
@@ -47,7 +47,7 @@ impl Account {
             .execute(&mut pool.acquire().await?)
             .await?;
         } else {
-            sqlx::query!(
+            let result = sqlx::query!(
                 r#"INSERT INTO ACCOUNT 
                 (wallet_id, name, type_id, balance, balance_date) 
                 VALUES (?, ?, ?, ?, ?)"#,
@@ -59,6 +59,7 @@ impl Account {
             )
             .execute(&mut pool.acquire().await?)
             .await?;
+            self.id = result.last_insert_id().try_into().ok();
         }
         Ok(())
     }

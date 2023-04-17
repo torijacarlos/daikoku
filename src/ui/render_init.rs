@@ -1,4 +1,4 @@
-use crate::{models::Wallet, Dkk, storage};
+use crate::{models::Wallet, storage, Dkk};
 
 use super::DkkUiState;
 
@@ -18,16 +18,22 @@ pub fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
             });
         });
         ui.horizontal(|ui| {
-            if ui.button("Import").clicked() {
-                let pool_ref = app.pool.clone();
-                tokio::spawn(async move {
-                    storage::import(&pool_ref).await;
-                });
-            }
+            let pool_ref = app.pool.clone();
+            ui.horizontal(|ui| {
+                let label = ui.label("Pin: ".to_string());
+                ui.text_edit_singleline(&mut app.pin).labelled_by(label.id);
+                if ui.button("Import").clicked() {
+                    let pin = app.pin.clone();
+                    tokio::spawn(async move {
+                        println!("Importing");
+                        let _ = storage::import(&pool_ref, &pin).await;
+                    });
+                }
+            });
             if ui.button("Create").clicked() {
                 let pool_ref = app.pool.clone();
                 tokio::spawn(async move {
-                    let wallet = Wallet::default();
+                    let mut wallet = Wallet::default();
                     if wallet.upsert(&pool_ref).await.is_err() {
                         todo!("unhandled error");
                     }

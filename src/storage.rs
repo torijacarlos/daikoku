@@ -1,3 +1,8 @@
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm,
+    Nonce, // Or `Aes128Gcm`
+};
 use sqlx::{MySql, Pool};
 
 use crate::{
@@ -16,35 +21,81 @@ pub fn load(app: &mut Dkk) {
     }
 }
 
-pub fn export(wallet: &Wallet) {
+//let key = Aes256Gcm::generate_key(&mut OsRng);
+//let cipher = Aes256Gcm::new(&key);
+//let nonce = Nonce::from_slice(&pin[..]); // 96-bits; unique per message
+//let ciphertext = cipher.encrypt(nonce, wallet_string.as_ref())?;
+//let plaintext = cipher.decrypt(nonce, ciphertext.as_ref())?;
+
+fn left_pad(pin: &String, len: usize) -> String {
+    if pin.len() < len {
+        let mut pad = (0..(len - pin.len())).map(|_| " ").collect::<String>();
+        pad.push_str(pin);
+        return pad;
+    }
+    pin.clone()
+}
+
+pub fn export(wallet: &Wallet, pin: &String) {
+    let wallet = clear_ids(wallet.clone());
     let mut location = home::home_dir().unwrap();
     location.push("atelier");
     let _ = std::fs::create_dir(&location);
     location.push(".daikoku");
-    let wallet_string = ron::to_string(wallet);
+    let wallet_string = ron::to_string(&wallet);
     if let Ok(ws) = wallet_string {
-        let _ = std::fs::write(location, ws);
+        let cipher = Aes256Gcm::new(left_pad(&"daikoku".to_string(), 32).as_bytes().into());
+        let pin = left_pad(pin, 12);
+        let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
+        if let Ok(ciphertext) = cipher.encrypt(nonce, ws.as_bytes()) {
+            let _ = std::fs::write(location, ciphertext);
+        }
     }
 }
 
-pub async fn import(pool: &Pool<MySql>) -> DkkResult<()> {
+fn clear_ids(mut wallet: Wallet) -> Wallet {
+    wallet.id = None;
+    for mut acc in &mut wallet.accounts {
+        acc.id = None;
+        acc.wallet_id = 0;
+        for mut t in &mut acc.transactions {
+            t.id = None;
+            t.account_id = 0;
+        }
+    }
+    wallet
+}
+
+pub async fn import(pool: &Pool<MySql>, pin: &String) -> DkkResult<()> {
+    let cipher = Aes256Gcm::new(left_pad(&"daikoku".to_string(), 32).as_bytes().into());
+    let pin = left_pad(pin, 12);
+    let nonce = Nonce::from_slice(pin.as_bytes()); // 96-bits; unique per message
     let mut location = home::home_dir().unwrap();
     location.push("atelier");
     location.push(".daikoku");
     // @todo: this is nasty. Do only three queries. One insert for the wallet, one batch insert
     // for accounts, and one for transactions
-    if let Ok(wallet_string) = std::fs::read_to_string(location) {
-        let mut wallet: Wallet = ron::from_str(&wallet_string).unwrap();
-        wallet.id = None;
-        wallet.upsert(pool).await?;
-        for mut acc in wallet.accounts {
-            acc.id = None;
-            acc.upsert(pool).await?;
-            for mut t in acc.transactions {
-                t.id = None;
-                t.upsert(pool).await?;
+    match std::fs::read(location) {
+        Ok(wallet_string) => match cipher.decrypt(nonce, wallet_string.as_slice()) {
+            Ok(wallet_string) => {
+                if let Ok(wallet_string) = std::str::from_utf8(&wallet_string) {
+                    let wallet: Wallet = ron::from_str(wallet_string).unwrap();
+                    println!("{:#?}", wallet);
+                    let mut wallet = clear_ids(wallet.clone());
+                    wallet.upsert(pool).await?;
+                    for mut acc in wallet.accounts {
+                        acc.wallet_id = wallet.id.unwrap();
+                        acc.upsert(pool).await?;
+                        for mut t in acc.transactions {
+                            t.account_id = acc.id.unwrap();
+                            t.upsert(pool).await?;
+                        }
+                    }
+                }
             }
-        }
+            Err(e) => println!("{}", e),
+        },
+        Err(e) => println!("{}", e),
     }
     Ok(())
 }

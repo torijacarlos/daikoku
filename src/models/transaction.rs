@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::{types::BigDecimal, MySql, Pool};
 
 use crate::alias::DkkResult;
@@ -19,7 +19,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
+    pub async fn upsert(&mut self, pool: &Pool<MySql>) -> DkkResult<()> {
         let trx_type = sqlx::query!(
             "SELECT id FROM LU_TRANSACTION_TYPE WHERE value = ?",
             self.trx_type.as_str()
@@ -40,7 +40,7 @@ impl Transaction {
             .execute(&mut pool.acquire().await?)
             .await?;
         } else {
-            sqlx::query!(
+            let result = sqlx::query!(
                 r#"INSERT INTO TRANSACTION (account_id, amount, type_id) VALUES (?, ?, ?)"#,
                 self.account_id,
                 self.amount,
@@ -48,6 +48,7 @@ impl Transaction {
             )
             .execute(&mut pool.acquire().await?)
             .await?;
+            self.id = result.last_insert_id().try_into().ok();
         }
         Ok(())
     }

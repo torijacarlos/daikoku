@@ -17,6 +17,7 @@ use sqlx::{MySql, Pool};
 use ui::{handle_input, render, DkkUiState};
 
 pub struct Dkk {
+    pub pin: String,
     pub wallet: DkkThreadData<Wallet>,
 
     pub available_wallets: DkkThreadData<Vec<u32>>,
@@ -38,10 +39,11 @@ impl Dkk {
     pub fn new() -> Self {
         let settings = settings::Settings::load().unwrap();
         Self {
+            pin: String::new(),
+            wallet: DkkThreadData::empty(),
             state: DkkUiState::Init,
             available_wallets: DkkThreadData::empty(),
             working_wallet: None,
-            wallet: DkkThreadData::empty(),
             working_account: Account::default(),
             working_transaction: Transaction::default(),
             pool: Arc::new(settings.get_db_conn_pool()),

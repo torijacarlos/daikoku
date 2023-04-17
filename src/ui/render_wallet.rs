@@ -17,9 +17,15 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
             ui.vertical(|ui| {
                 ui.label(RichText::new("Wallet information").strong());
                 ui.vertical(|ui| {
-                    if ui.button("Export Wallet to file").clicked() {
-                        storage::export(wallet);
-                    }
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            let label = ui.label("Pin: ".to_string());
+                            ui.text_edit_singleline(&mut app.pin).labelled_by(label.id);
+                            if ui.button("Export Wallet to file").clicked() {
+                                storage::export(wallet, &app.pin);
+                            }
+                        });
+                    });
                     ui.group(|ui| {
                         ui.label(format!("Id: {}", wallet.id.unwrap()));
                         ui.label(format!("Created date: {:?}", wallet.created_date));
