@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug)]
 enum AccountType {
@@ -15,11 +16,26 @@ enum TransactionType {
     Credit,
 }
 
+trait Storage {
+    fn get(id: u32) -> Self;
+    fn save();
+}
+
 struct Wallet<'a> {
+    id: Option<u32>,
+    username: &'a str,
     accounts: Vec<Account<'a>>,
 }
 
 impl<'a> Wallet<'a> {
+    fn new(username: &'a str) -> Self {
+        Self {
+            id: None,
+            username,
+            accounts: vec![],
+        }
+    }
+
     fn net_worth(&self) -> f32 {
         let mut total = 0.0;
         for acc in &self.accounts {
@@ -29,8 +45,20 @@ impl<'a> Wallet<'a> {
     }
 }
 
+impl<'a> Storage for Wallet<'a> {
+    fn get(id: u32) -> Self {
+        todo!();
+    }
+
+    fn save() {
+        todo!();
+    }
+}
+
 #[derive(Debug)]
 struct Account<'a> {
+    id: Option<u32>,
+    wallet_id: u32,
     name: &'a str,
     acc_type: AccountType,
     created_date: DateTime<Utc>,
@@ -38,10 +66,12 @@ struct Account<'a> {
 }
 
 impl<'a> Account<'a> {
-    fn new(name: &'a str, acc_type: AccountType) -> Self {
+    fn new(wallet_id: u32, name: &'a str, acc_type: AccountType) -> Self {
         Self {
+            id: None,
             name,
             acc_type,
+            wallet_id,
             created_date: Utc::now(),
             transactions: vec![],
         }
@@ -65,15 +95,19 @@ impl<'a> Account<'a> {
 
 #[derive(Debug)]
 struct Transaction {
+    id: Option<u32>,
     amount: f32,
     execution_date: DateTime<Utc>,
     trx_type: TransactionType,
+    account_id: u32,
 }
 
 impl Transaction {
-    fn new(amount: f32, trx_type: TransactionType) -> Self {
+    fn new(account_id: u32, amount: f32, trx_type: TransactionType) -> Self {
         Transaction {
+            id: None,
             amount,
+            account_id,
             trx_type,
             execution_date: Utc::now(),
         }
@@ -81,20 +115,20 @@ impl Transaction {
 }
 
 fn main() {
-    let mut wallet = Wallet {
-        accounts: vec![
-            Account::new("test-asset", AccountType::Asset),
-            Account::new("test-liability", AccountType::Liability),
-        ],
-    };
+    let mut wallet = Wallet::new("torijacarlos");
+    wallet.accounts = vec![
+        Account::new(0, "test-asset", AccountType::Asset),
+        Account::new(0, "test-liability", AccountType::Liability),
+    ];
 
+    println!("{}", u32::MAX);
     for acc in wallet.accounts.iter_mut() {
         acc.transactions
-            .push(Transaction::new(1000.0, TransactionType::Debit));
+            .push(Transaction::new(0, 1000.0, TransactionType::Debit));
         acc.transactions
-            .push(Transaction::new(1000.0, TransactionType::Debit));
+            .push(Transaction::new(0, 1000.0, TransactionType::Debit));
         acc.transactions
-            .push(Transaction::new(500.0, TransactionType::Credit));
+            .push(Transaction::new(0, 500.0, TransactionType::Credit));
         println!("{}: {}", acc.name, acc.balance());
     }
     println!("Wallet: {}", wallet.net_worth());
