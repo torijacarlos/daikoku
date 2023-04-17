@@ -28,21 +28,35 @@ impl Daikoku {
     }
 }
 
-fn render_wallet(app: &mut Daikoku, ui: &mut egui::Ui) {
-    app.wallet.get(|w: Option<&mut Wallet>| {
+fn load_wallet(app: &Daikoku) {
+    let wallet_ref = app.wallet.clone();
+    let set_ref = app.settings.clone();
+    tokio::spawn(async move {
+        if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
+            let result = Wallet::get(1, pool).await;
+            if let Ok(mut mutex_lock) = wallet_ref.write() {
+                *mutex_lock = result.ok();
+            }
+        }
+    });
+}
+
+fn render_wallet(app: &Daikoku, ui: &mut egui::Ui) {
+    app.wallet.get(|w: Option<&Wallet>| {
         if let Some(w) = w {
             ui.label(format!("Wallet '{}'", w.id));
         } else {
-            let wallet_ref = app.wallet.clone();
-            let set_ref = app.settings.clone();
-            tokio::spawn(async move {
-                if let Ok(ref pool) = &set_ref.get_db_conn_pool().await {
-                    let result = Wallet::get(1, pool).await;
-                    if let Ok(mut mutex_lock) = wallet_ref.lock() {
-                        *mutex_lock = result.ok();
-                    }
-                }
-            });
+            load_wallet(&app);
+        }
+    });
+}
+
+fn render_net_worth(app: &Daikoku, ui: &mut egui::Ui) {
+    app.wallet.get(|w: Option<&Wallet>| {
+        if let Some(w) = w {
+            ui.label(format!("Wallet '{}'", w.id));
+        } else {
+            load_wallet(&app);
         }
     });
 }
@@ -68,6 +82,7 @@ impl eframe::App for Daikoku {
 
             // (torijacarlos:todo) Render net worth
 
+            render_net_worth(self, ui);
             self.frame += 1;
         });
     }

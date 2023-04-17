@@ -1,25 +1,25 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::error::DaikokuError;
 
 pub type DaikokuResult<T> = Result<T, DaikokuError>;
-pub type ThreadData<T> = Arc<Mutex<Option<T>>>;
+pub type ThreadData<T> = Arc<RwLock<Option<T>>>;
 
 pub struct DaikokuThreadData<T>(pub ThreadData<T>);
 
 impl<T> DaikokuThreadData<T> {
     pub fn empty() -> Self {
-        Self(Arc::new(Mutex::new(None)))
+        Self(Arc::new(RwLock::new(None)))
     }
 
     pub fn clone(&self) -> ThreadData<T> {
         self.0.clone()
     }
 
-    pub fn get(&self, mut v: impl FnMut(Option<&mut T>)) {
-        if let Ok(mut wallet_guard) = self.0.try_lock() {
-            match &mut *wallet_guard {
-                Some(ref mut w) => v(Some(w)),
+    pub fn get(&self, mut v: impl FnMut(Option<&T>)) {
+        if let Ok(wallet_guard) = self.0.read() {
+            match &*wallet_guard {
+                Some(ref w) => v(Some(w)),
                 _ => v(None),
             };
         }
