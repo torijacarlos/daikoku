@@ -3,7 +3,7 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 use chrono::{NaiveTime, TimeZone, Utc};
 
-use crate::models::{get_account_balance, Account, AccountType};
+use crate::models::{Account, AccountType, get_account_balance};
 
 pub fn render_account(ui: &mut egui::Ui, account: &mut Account, editing: bool) {
     if editing {
@@ -17,7 +17,8 @@ fn viewing_account(ui: &mut egui::Ui, account: &mut Account) {
     ui.label(format!("Id: {:?}", account.id));
     ui.label(format!("Name: {}", account.name));
     ui.label(format!("Type: {:?}", account.acc_type));
-    ui.label(format!("Balance: {:?}", get_account_balance(account)));
+    ui.label(format!("Balance: {:?}", account.balance));
+    ui.label(format!("Current Balance: {:?}", get_account_balance(account)));
     ui.label(format!("Balance date: {}", account.balance_date));
     ui.label(format!("Created date: {}", account.created_date));
 }

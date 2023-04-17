@@ -13,7 +13,7 @@ use std::{
 use egui::Align;
 use models::Wallet;
 use settings::Settings;
-use ui::{handle_input, render, DkkUiState};
+use ui::{handle_input, render};
 use uuid::Uuid;
 
 pub struct Dkk {
@@ -32,7 +32,6 @@ pub struct Dkk {
     pub fps: f32,
     pub frame: u128,
     pub frame_time: Instant,
-    pub state: DkkUiState,
 }
 
 impl Dkk {
@@ -41,7 +40,6 @@ impl Dkk {
         Self {
             pin: String::new(),
             wallet: None,
-            state: DkkUiState::Init,
             available_wallets: storage::get_all_wallets_locations(),
             working_alias: String::new(),
             working_account_id: None,

@@ -2,7 +2,7 @@ use egui::RichText;
 
 use crate::{
     models::{get_accounts_net_worth, get_wallet_liquidity_index, Account, Transaction},
-    storage, Dkk,
+    Dkk,
 };
 
 use super::{render_account::render_account, render_transaction::render_transaction};
@@ -12,15 +12,6 @@ pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
         ui.vertical(|ui| {
             ui.label(RichText::new("Wallet information").strong());
             ui.vertical(|ui| {
-                ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        let label = ui.label("Pin: ".to_string());
-                        ui.text_edit_singleline(&mut app.pin).labelled_by(label.id);
-                        if ui.button("Export Wallet to file").clicked() {
-                            storage::export(wallet, &app.pin, &app.crypt_key);
-                        }
-                    });
-                });
                 ui.group(|ui| {
                     ui.label(format!("Id: {:?}", wallet.id));
                     ui.label(format!("Alias: {}", wallet.alias));
