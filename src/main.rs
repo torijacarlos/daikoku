@@ -39,7 +39,7 @@ fn prepare_database_pool(app: &Daikoku) {
             let pool_ref = app.pool.clone();
             tokio::spawn(async move {
                 if let Ok(pool) = &settings_ref.get_db_conn_pool().await {
-                    if let Ok(mut write_guard) = pool_ref.write() {
+                    if let Ok(mut write_guard) = pool_ref.lock() {
                         *write_guard = Some(pool.clone());
                     }
                 }
