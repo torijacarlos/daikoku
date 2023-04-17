@@ -11,7 +11,7 @@ use std::{
 };
 
 use egui::Align;
-use models::{Transaction, Wallet};
+use models::Wallet;
 use settings::Settings;
 use ui::{handle_input, render, DkkUiState};
 use uuid::Uuid;

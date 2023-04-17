@@ -3,11 +3,7 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 use chrono::{NaiveTime, TimeZone, Utc};
 
-use crate::{
-    models::{Transaction, TransactionType},
-};
-
-use super::DkkUiState;
+use crate::models::{Transaction, TransactionType};
 
 pub fn render_transaction(ui: &mut egui::Ui, transaction: &mut Transaction, editing: bool) {
     if editing {

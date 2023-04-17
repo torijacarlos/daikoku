@@ -5,7 +5,7 @@ use crate::{
     storage, Dkk,
 };
 
-use super::{render_account::render_account, render_transaction::render_transaction, DkkUiState};
+use super::{render_account::render_account, render_transaction::render_transaction};
 
 pub fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
     if let Some(ref mut wallet) = app.wallet {

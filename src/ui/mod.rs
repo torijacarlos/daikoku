@@ -3,7 +3,7 @@ mod render_init;
 mod render_transaction;
 mod render_wallet;
 
-use crate::{Dkk, storage::get_all_wallets_locations};
+use crate::{storage::get_all_wallets_locations, Dkk};
 
 pub enum DkkUiState {
     Init,
@@ -12,7 +12,7 @@ pub enum DkkUiState {
     // the usage would be, for example, avoid the boolean param in render_account (editing)
     // and instead use the state. in that case the State could have an struct
     // AccountEdition { id: Uuid }
-    // Same for Transaction and Wallet 
+    // Same for Transaction and Wallet
     // the current render function will most likely dissappear as it is
 }
 
