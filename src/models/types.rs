@@ -1,7 +1,8 @@
 use sqlx::{database::HasValueRef, Database, Decode};
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Clone, Default, Eq, PartialEq, Debug)]
 pub enum AccountType {
+    #[default]
     Asset,
     Liability,
     Expense,

@@ -12,7 +12,7 @@ use egui::RichText;
 use error::DkkError;
 use models::{
     get_account_balance, get_account_transactions, get_accounts_net_worth, get_wallet_accounts,
-    Account, Transaction, TransactionType,
+    Account, AccountType, Transaction, TransactionType,
 };
 use sqlx::{MySql, Pool};
 
@@ -23,7 +23,15 @@ enum DkkState {
     // @todo:init-state: There needs to be an initial state, perhaps to select a wallet or,
     // eventually, to perform a login operation Login/SelectWallet,
     Wallet,
+    CreateAccount,
     CreateTransaction,
+}
+
+#[derive(Default, Clone)]
+struct CreateAccount {
+    wallet_id: u32,
+    name: String,
+    acc_type: AccountType,
 }
 
 #[derive(Default, Clone)]
@@ -36,6 +44,7 @@ struct CreateTransaction {
 struct Dkk {
     wallet: DkkThreadData<Wallet>,
 
+    create_account: CreateAccount,
     create_transaction: CreateTransaction,
     pool: Arc<Pool<MySql>>,
 
@@ -51,6 +60,7 @@ impl Dkk {
         let settings = Settings::load().unwrap();
         Self {
             wallet: DkkThreadData::empty(),
+            create_account: CreateAccount::default(),
             create_transaction: CreateTransaction::default(),
             pool: Arc::new(settings.get_db_conn_pool()),
             force_reload: false,
@@ -132,8 +142,81 @@ fn update_fps(app: &mut Dkk) {
 fn render(ui: &mut egui::Ui, app: &mut Dkk) {
     match app.state {
         DkkState::Wallet => render_wallet(ui, app),
+        DkkState::CreateAccount => render_create_account(ui, app),
         DkkState::CreateTransaction => render_create_transaction(ui, app),
     };
+}
+
+fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
+    ui.group(|ui| {
+        ui.label(format!(
+            "Creating account for wallet: {}",
+            app.create_account.wallet_id
+        ));
+    });
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            let label = ui.label("Name: ".to_string());
+            ui.text_edit_singleline(&mut app.create_account.name)
+                .labelled_by(label.id);
+        });
+        ui.horizontal(|ui| {
+            let label = ui.label("Type: ".to_string());
+            egui::ComboBox::from_label("")
+                .selected_text(format!("{:?}", app.create_account.acc_type))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut app.create_account.acc_type,
+                        AccountType::Asset,
+                        "Asset",
+                    );
+                    ui.selectable_value(
+                        &mut app.create_account.acc_type,
+                        AccountType::Equity,
+                        "Equity",
+                    );
+                    ui.selectable_value(
+                        &mut app.create_account.acc_type,
+                        AccountType::Expense,
+                        "Expense",
+                    );
+                    ui.selectable_value(
+                        &mut app.create_account.acc_type,
+                        AccountType::Income,
+                        "Income",
+                    );
+                    ui.selectable_value(
+                        &mut app.create_account.acc_type,
+                        AccountType::Liability,
+                        "Liability",
+                    );
+                })
+                .response
+                .labelled_by(label.id);
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Create").clicked() {
+                app.state = DkkState::Wallet;
+                let pool_ref = app.pool.clone();
+                let ca_copy = app.create_account.clone();
+                tokio::spawn(async move {
+                    match Account::create(
+                        ca_copy.wallet_id,
+                        ca_copy.name,
+                        ca_copy.acc_type,
+                        &pool_ref,
+                    )
+                    .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            todo!("unhandled error: {:?}", e)
+                        }
+                    }
+                });
+            }
+        });
+    });
 }
 
 fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
@@ -257,6 +340,13 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                 });
                             });
                         }
+                        if ui.button("Create account").clicked() {
+                            app.state = DkkState::CreateAccount;
+                            app.create_account = CreateAccount {
+                                wallet_id: wallet.id,
+                                ..Default::default()
+                            };
+                        }
                     });
                 });
             });
@@ -265,11 +355,14 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
 }
 
 fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
-    if let DkkState::CreateTransaction { .. } = app.state {
-        ui.input(|input| {
-            if input.key_pressed(egui::Key::Escape) {
-                app.state = DkkState::Wallet;
-            }
-        });
-    };
+    match app.state {
+        DkkState::CreateTransaction | DkkState::CreateAccount => {
+            ui.input(|input| {
+                if input.key_pressed(egui::Key::Escape) {
+                    app.state = DkkState::Wallet;
+                }
+            });
+        }
+        _ => {}
+    }
 }
