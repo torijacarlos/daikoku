@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
+use egui::RichText;
 use error::DaikokuError;
 use models::{get_accounts_net_worth, get_wallet_accounts, Account};
 use sqlx::{MySql, Pool};
@@ -76,6 +77,8 @@ async fn main() -> DaikokuResult<()> {
 impl eframe::App for Daikoku {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            self.frame += 1;
+
             ui.heading("Daikoku");
 
             // load data
@@ -83,25 +86,30 @@ impl eframe::App for Daikoku {
             load_wallet(&self, wallet_id);
             load_accounts(&self, wallet_id);
 
-            // render data
-            self.wallet.get(|w: Option<&Wallet>| {
-                if let Some(w) = w {
-                    ui.label(format!("Wallet '{}'", w.id));
-                    ui.label(format!("Created date '{:?}'", w.created_date));
-                }
+            ui.vertical(|ui| {
+                // render data
+                ui.group(|ui| {
+                    ui.label(RichText::new("Wallet information").strong());
+                    ui.horizontal(|ui| {
+                        self.wallet.get(|w: Option<&Wallet>| {
+                            if let Some(w) = w {
+                                ui.label(format!("Id: {}", w.id));
+                                ui.label(format!("Created date: {:?}", w.created_date));
+                            }
+                        });
+                    });
+                });
             });
-
-
-
-            // see fps
-            ctx.request_repaint();
-            self.frame += 1;
-            let sec_marker = self.start_time.elapsed().as_secs_f32() % 1.0;
-            if sec_marker > 0.985 {
-                self.fps = self.frame.clone();
-                self.frame = 0;
-            }
-            ui.label(format!("fps '{:?}'", self.fps));
+            ui.group(|ui| {
+                // see fps
+                ctx.request_repaint();
+                let sec_marker = self.start_time.elapsed().as_secs_f32() % 1.0;
+                if sec_marker > 0.985 {
+                    self.fps = self.frame.clone();
+                    self.frame = 0;
+                }
+                ui.label(format!("fps '{:?}'", self.fps));
+            });
         });
     }
 }
