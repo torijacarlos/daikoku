@@ -21,6 +21,9 @@ use crate::settings::Settings;
 
 struct Daikoku {
     wallet: DaikokuThreadData<Wallet>,
+
+    // @todo: maybe both accounts and transactions should be a single hashmap
+    // get_accounts_net_worth could receive HashMap<Account, Vec<Transaction>> instead
     accounts: DaikokuThreadData<Vec<Account>>,
     transactions: DaikokuThreadData<HashMap<u32, Vec<Transaction>>>,
     pool: Arc<Pool<MySql>>,
