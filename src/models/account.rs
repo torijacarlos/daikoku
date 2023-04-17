@@ -6,7 +6,7 @@ use crate::{alias::DkkResult, error::DkkError};
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Hash, Eq, PartialEq, Debug, Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Account {
     // db data
     pub id: Option<u32>,
@@ -17,6 +17,7 @@ pub struct Account {
     pub wallet_id: u32,
     pub name: String,
     pub acc_type: AccountType,
+    pub transactions: Vec<Transaction>,
 }
 
 impl Account {
@@ -45,8 +46,7 @@ impl Account {
     }
 
     pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
-        sqlx::query_as!(
-            Self,
+        let account_row = sqlx::query!(
             r#"
             SELECT 
             a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
@@ -58,7 +58,17 @@ impl Account {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
-        .map_err(DkkError::Database)
+        .map_err(DkkError::Database)?;
+
+        Ok(Account {
+            id: account_row.id,
+            created_date: account_row.created_date,
+            updated_date: account_row.updated_date,
+            wallet_id: account_row.wallet_id,
+            name: account_row.name.clone(),
+            acc_type: account_row.acc_type,
+            transactions: vec![],
+        })
     }
 
     pub async fn save(&self, pool: &Pool<MySql>) -> DkkResult<()> {
@@ -85,13 +95,13 @@ impl Account {
     }
 }
 
-pub fn get_account_balance(acc_type: &AccountType, transactions: &[Transaction]) -> f32 {
+pub fn get_account_balance(acc: &Account) -> f32 {
     let mut total: f32 = 0.0;
-    let multiplier = match acc_type {
+    let multiplier = match acc.acc_type {
         AccountType::Asset | AccountType::Expense => 1.0,
         _ => -1.0,
     };
-    for trx in transactions.iter() {
+    for trx in acc.transactions.iter() {
         match trx.trx_type {
             TransactionType::Debit => total += trx.amount.to_f32().unwrap() * multiplier,
             TransactionType::Credit => total -= trx.amount.to_f32().unwrap() * multiplier,

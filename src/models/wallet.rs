@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
 use crate::{alias::DkkResult, error::DkkError};
 
-use super::{get_account_balance, Account, AccountType, Transaction};
+use super::{get_account_balance, Account, AccountType};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -13,9 +11,7 @@ pub struct Wallet {
     pub id: u32,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
-
-    // @todo:remove-hash-map: transactions should just be a vec within the Account struct
-    pub accounts: HashMap<Account, Vec<Transaction>>,
+    pub accounts: Vec<Account>,
 }
 
 unsafe impl Send for Wallet {}
@@ -41,7 +37,7 @@ impl Wallet {
             id: wallet.id,
             created_date: wallet.created_date,
             updated_date: wallet.updated_date,
-            accounts: HashMap::new(),
+            accounts: vec![],
         })
     }
 }
@@ -55,8 +51,7 @@ pub async fn get_all_wallet_ids(pool: &Pool<MySql>) -> DkkResult<Vec<u32>> {
 }
 
 pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResult<Vec<Account>> {
-    sqlx::query_as!(
-        Account,
+    sqlx::query!(
         r#"SELECT  
             a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
             FROM ACCOUNT a
@@ -67,17 +62,27 @@ pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResul
     )
     .fetch_all(&mut pool.acquire().await?)
     .await
+    .map(|result| {
+        result.iter().map(|account| {
+            Account {
+                id: account.id,
+                created_date: account.created_date,
+                updated_date: account.updated_date,
+                wallet_id: account.wallet_id,
+                name: account.name.clone(),
+                acc_type: account.acc_type.clone(),
+                transactions: vec![]
+            }
+        })
+        .collect()
+    })
     .map_err(DkkError::Database)
 }
 
-pub fn get_accounts_net_worth(accounts: &HashMap<Account, Vec<Transaction>>) -> f32 {
+pub fn get_accounts_net_worth(accounts: &Vec<Account>) -> f32 {
     let mut total = 0.0;
-    for acc in accounts.keys() {
-        total += if let Some(t) = accounts.get(acc) {
-            get_account_balance(&acc.acc_type, t)
-        } else {
-            0.0
-        };
+    for acc in accounts {
+        total += get_account_balance(acc);
     }
     total
 }

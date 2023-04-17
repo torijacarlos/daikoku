@@ -26,6 +26,16 @@ impl<T> DkkThreadData<T> {
         };
     }
 
+    pub fn get_mut(&self, mut v: impl FnMut(Option<&mut T>)) {
+        let self_ref = self.0.clone();
+        if let Ok(mut wallet_guard) = self_ref.lock() {
+            match &mut *wallet_guard {
+                Some(w) => v(Some(w)),
+                _ => v(None),
+            };
+        };
+    }
+
     pub fn is_set(&self) -> bool {
         let mut is_set = false;
         let self_ref = self.0.clone();

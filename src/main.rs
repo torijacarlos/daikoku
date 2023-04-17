@@ -34,10 +34,11 @@ struct Dkk {
     wallet: DkkThreadData<Wallet>,
 
     available_wallets: DkkThreadData<Vec<u32>>,
-    selected_wallet: Option<u32>,
 
+    working_wallet: Option<u32>,
     working_account: Account,
     working_transaction: Transaction,
+
     pool: Arc<Pool<MySql>>,
 
     force_reload: bool,
@@ -53,7 +54,7 @@ impl Dkk {
         Self {
             state: DkkState::Init,
             available_wallets: DkkThreadData::empty(),
-            selected_wallet: None,
+            working_wallet: None,
             wallet: DkkThreadData::empty(),
             working_account: Account::default(),
             working_transaction: Transaction::default(),
@@ -88,14 +89,12 @@ fn load_wallet(app: &mut Dkk, wallet_id: u32) {
         tokio::spawn(async move {
             let mut wallet = Wallet::get(wallet_id, &pool_ref).await.ok();
             if let Some(ref mut wallet) = wallet {
-                if let Ok(accounts) = get_wallet_accounts(wallet_id, &pool_ref).await {
-                    for acc in accounts {
+                if let Ok(mut accounts) = get_wallet_accounts(wallet_id, &pool_ref).await {
+                    for acc in &mut accounts {
                         let ts = get_account_transactions(acc.id.unwrap(), &pool_ref).await;
-
-                        wallet
-                            .accounts
-                            .insert(acc, if let Ok(ts) = ts { ts } else { vec![] });
+                        acc.transactions = if let Ok(ts) = ts { ts } else { vec![] };
                     }
+                    wallet.accounts = accounts;
                 }
             }
 
@@ -131,7 +130,7 @@ impl eframe::App for Dkk {
         if let DkkState::Init = self.state {
             load_available_wallets(self);
         }
-        if let Some(wallet_id) = self.selected_wallet {
+        if let Some(wallet_id) = self.working_wallet {
             load_wallet(self, wallet_id);
         }
         update_fps(self);
@@ -167,7 +166,7 @@ fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
                 if let Some(aw) = aw {
                     for wallet_id in aw {
                         if ui.button(format!("{wallet_id}")).clicked() {
-                            app.selected_wallet = Some(*wallet_id);
+                            app.working_wallet = Some(*wallet_id);
                             app.state = DkkState::Wallet;
                         }
                     }
@@ -324,7 +323,7 @@ fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
 }
 
 fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
-    app.wallet.get(|wallet: Option<&Wallet>| {
+    app.wallet.get_mut(|wallet: Option<&mut Wallet>| {
         if let Some(wallet) = wallet {
             ui.vertical(|ui| {
                 ui.label(RichText::new("Wallet information").strong());
@@ -338,11 +337,12 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                         ));
                     });
                     ui.vertical(|ui| {
-                        let mut accounts: Vec<&Account> = wallet.accounts.keys().collect();
-                        accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+                        wallet
+                            .accounts
+                            .sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
 
                         ui.label(RichText::new("Accounts").strong());
-                        for acc in accounts {
+                        for acc in &wallet.accounts {
                             ui.group(|ui| {
                                 ui.vertical(|ui| {
                                     ui.label(format!("Id: {}", acc.id.unwrap()));
@@ -352,35 +352,23 @@ fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
                                         "Account Created date: {:?}",
                                         acc.created_date
                                     ));
-                                    ui.label(format!(
-                                        "Balance: {:?}",
-                                        if let Some(transactions) = wallet.accounts.get(acc) {
-                                            get_account_balance(&acc.acc_type, transactions)
-                                        } else {
-                                            0.0
-                                        }
-                                    ));
-                                    if let Some(transactions) = wallet.accounts.get(acc) {
-                                        for t in transactions {
-                                            ui.group(|ui| {
-                                                ui.label(format!(
-                                                    "Transaction id: {}",
-                                                    t.id.unwrap()
-                                                ));
-                                                ui.label(format!("Amount: {:?}", t.amount));
-                                                ui.label(format!("Trx Type: {:?}", t.trx_type));
-                                            });
-                                        }
+                                    ui.label(format!("Balance: {:?}", get_account_balance(acc)));
+                                    for t in &acc.transactions {
                                         ui.group(|ui| {
-                                            if ui.button("Create transaction").clicked() {
-                                                app.state = DkkState::CreateTransaction;
-                                                app.working_transaction = Transaction {
-                                                    account_id: acc.id.unwrap(),
-                                                    ..Default::default()
-                                                };
-                                            }
+                                            ui.label(format!("Transaction id: {}", t.id.unwrap()));
+                                            ui.label(format!("Amount: {:?}", t.amount));
+                                            ui.label(format!("Trx Type: {:?}", t.trx_type));
                                         });
                                     }
+                                    ui.group(|ui| {
+                                        if ui.button("Create transaction").clicked() {
+                                            app.state = DkkState::CreateTransaction;
+                                            app.working_transaction = Transaction {
+                                                account_id: acc.id.unwrap(),
+                                                ..Default::default()
+                                            };
+                                        }
+                                    });
                                 });
                             });
                         }
@@ -411,7 +399,7 @@ fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Escape) {
                     app.state = DkkState::Init;
-                    app.selected_wallet = None;
+                    app.working_wallet = None;
                     let wallet_ref = app.wallet.clone();
                     if let Ok(mut guard) = wallet_ref.lock() {
                         *guard = None;
