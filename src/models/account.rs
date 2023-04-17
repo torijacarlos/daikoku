@@ -31,9 +31,9 @@ impl Account {
         if self.id.is_some() {
             sqlx::query!(
                 r#"
-            UPDATE ACCOUNT 
-            SET name = ?, type_id = ?
-            WHERE id = ?"#,
+                UPDATE ACCOUNT 
+                SET name = ?, type_id = ?
+                WHERE id = ?"#,
                 self.name,
                 acc_type.id,
                 self.id
