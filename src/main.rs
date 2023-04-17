@@ -8,6 +8,7 @@ use std::sync::Arc;
 use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
 use error::DaikokuError;
+use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
 use crate::settings::Settings;
@@ -15,6 +16,7 @@ use crate::settings::Settings;
 struct Daikoku {
     wallet: DaikokuThreadData<Wallet>,
     settings: Arc<Settings>,
+    pool: DaikokuThreadData<Pool<MySql>>,
     frame: u16,
 }
 
@@ -24,9 +26,26 @@ impl Daikoku {
         Self {
             wallet: DaikokuThreadData::empty(),
             settings,
+            pool: DaikokuThreadData::empty(),
             frame: 0,
         }
     }
+}
+
+fn prepare_database_pool(app: &Daikoku) {
+    app.pool.get_option(|pool| {
+        if let None = pool {
+            let settings_ref = app.settings.clone();
+            let pool_ref = app.pool.clone();
+            tokio::spawn(async move {
+                if let Ok(pool) = &settings_ref.get_db_conn_pool().await {
+                    if let Ok(mut write_guard) = pool_ref.write() {
+                        *write_guard = Some(pool.clone());
+                    }
+                }
+            });
+        }
+    });
 }
 
 #[tokio::main]
@@ -45,7 +64,8 @@ impl eframe::App for Daikoku {
             ui.heading("Daikoku");
             ui.label(format!("Frame '{}'", self.frame));
             // prepare application
-            // @todo: prepare database pool
+            prepare_database_pool(&self);
+
             // load data
             // render data
             self.wallet.get(|w: &Wallet| {
