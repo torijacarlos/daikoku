@@ -10,7 +10,7 @@ use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
 use egui::RichText;
 use error::DaikokuError;
-use models::{get_account_transactions, get_accounts_net_worth, get_wallet_accounts};
+use models::{get_account_transactions, get_accounts_net_worth, get_wallet_accounts, Account};
 use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
@@ -102,8 +102,10 @@ impl eframe::App for Daikoku {
                                 });
                                 ui.vertical(|ui| {
                                     ui.label(RichText::new("Accounts").strong());
+                                    let mut accounts: Vec<&Account> = w.accounts.keys().collect();
+                                    accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
 
-                                    for acc in w.accounts.keys() {
+                                    for acc in accounts {
                                         ui.group(|ui| {
                                             ui.vertical(|ui| {
                                                 ui.label(format!("Account Id: {}", acc.id));
