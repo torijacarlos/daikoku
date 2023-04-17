@@ -7,3 +7,6 @@ pub enum DaikokuError {
     #[error(transparent)]
     RenderError(#[from] eframe::Error),
 }
+
+unsafe impl Send for DaikokuError {}
+unsafe impl Sync for DaikokuError {}

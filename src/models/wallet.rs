@@ -12,6 +12,8 @@ pub struct Wallet {
     pub updated_date: DateTime<Utc>,
 }
 
+unsafe impl Send for Wallet {}
+
 impl Wallet {
     pub async fn create(pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
         let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
@@ -21,7 +23,7 @@ impl Wallet {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
+    pub async fn get(id: u32, pool: &Pool<MySql>) -> DaikokuResult<Self> {
         sqlx::query_as!(
             Self,
             r#"SELECT id, created_date, updated_date FROM WALLET WHERE id = ?"#,
