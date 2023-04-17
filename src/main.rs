@@ -86,63 +86,10 @@ impl eframe::App for Daikoku {
             load_wallet(self, wallet_id);
 
             // render data
-            ui.vertical(|ui| {
-                ui.group(|ui| {
-                    ui.label(RichText::new("Wallet information").strong());
-                    ui.vertical(|ui| {
-                        self.wallet.get(|w: Option<&Wallet>| {
-                            if let Some(w) = w {
-                                ui.group(|ui| {
-                                    ui.label(format!("Id: {}", w.id));
-                                    ui.label(format!("Created date: {:?}", w.created_date));
-                                    ui.label(format!(
-                                        "Net Worth: {:?}",
-                                        get_accounts_net_worth(&w.accounts)
-                                    ));
-                                });
-                                ui.vertical(|ui| {
-                                    ui.label(RichText::new("Accounts").strong());
-                                    let mut accounts: Vec<&Account> = w.accounts.keys().collect();
-                                    accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
-
-                                    for acc in accounts {
-                                        ui.group(|ui| {
-                                            ui.vertical(|ui| {
-                                                ui.label(format!("Account Id: {}", acc.id));
-                                                ui.label(format!(
-                                                    "Account type: {:?}",
-                                                    acc.acc_type
-                                                ));
-                                                ui.label(format!(
-                                                    "Account Created date: {:?}",
-                                                    acc.created_date
-                                                ));
-                                                if let Some(transactions) = w.accounts.get(acc) {
-                                                    for t in transactions {
-                                                        ui.group(|ui| {
-                                                            ui.label(format!(
-                                                                "Transaction id: {}",
-                                                                t.id
-                                                            ));
-                                                            ui.label(format!(
-                                                                "Amount: {:?}",
-                                                                t.amount
-                                                            ));
-                                                            ui.label(format!(
-                                                                "Trx Type: {:?}",
-                                                                t.trx_type
-                                                            ));
-                                                        });
-                                                    }
-                                                }
-                                            });
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    });
-                });
+            self.wallet.get(|w: Option<&Wallet>| {
+                if let Some(w) = w {
+                    render_wallet(ui, w);
+                }
             });
 
             ui.group(|ui| {
@@ -151,13 +98,58 @@ impl eframe::App for Daikoku {
             });
         });
 
+        let seconds = 2;
         self.frame += 1;
-        if self.frame_time.elapsed() > Duration::new(1, 0) {
-            self.fps = self.frame as f32;
+        if self.frame_time.elapsed() > Duration::new(seconds, 0) {
+            self.fps = self.frame as f32 / (seconds as f32);
             self.frame = 0;
             self.frame_time = Instant::now();
             self.force_reload = true;
         }
         ctx.request_repaint();
     }
+}
+
+fn render_wallet(ui: &mut egui::Ui, wallet: &Wallet) {
+    ui.vertical(|ui| {
+        ui.label(RichText::new("Wallet information").strong());
+        ui.vertical(|ui| {
+            ui.group(|ui| {
+                ui.label(format!("Id: {}", wallet.id));
+                ui.label(format!("Created date: {:?}", wallet.created_date));
+                ui.label(format!(
+                    "Net Worth: {:?}",
+                    get_accounts_net_worth(&wallet.accounts)
+                ));
+            });
+            ui.vertical(|ui| {
+                ui.label(RichText::new("Accounts").strong());
+                let mut accounts: Vec<&Account> = wallet.accounts.keys().collect();
+                accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+
+                for acc in accounts {
+                    render_account(ui, wallet, acc);
+                }
+            });
+        });
+    });
+}
+
+fn render_account(ui: &mut egui::Ui, wallet: &Wallet, acc: &Account) {
+    ui.group(|ui| {
+        ui.vertical(|ui| {
+            ui.label(format!("Account Id: {}", acc.id));
+            ui.label(format!("Account type: {:?}", acc.acc_type));
+            ui.label(format!("Account Created date: {:?}", acc.created_date));
+            if let Some(transactions) = wallet.accounts.get(acc) {
+                for t in transactions {
+                    ui.group(|ui| {
+                        ui.label(format!("Transaction id: {}", t.id));
+                        ui.label(format!("Amount: {:?}", t.amount));
+                        ui.label(format!("Trx Type: {:?}", t.trx_type));
+                    });
+                }
+            }
+        });
+    });
 }
