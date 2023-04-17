@@ -4,4 +4,6 @@ pub enum DaikokuError {
     ConfigError(#[from] config::ConfigError),
     #[error(transparent)]
     DatabaseError(#[from] sqlx::Error),
+    #[error(transparent)]
+    RenderError(#[from] eframe::Error),
 }
