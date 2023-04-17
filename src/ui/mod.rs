@@ -3,7 +3,7 @@ mod render_init;
 mod render_transaction;
 mod render_wallet;
 
-use crate::Dkk;
+use crate::{Dkk, storage::get_all_wallets_locations};
 
 pub enum DkkUiState {
     Init,
@@ -35,9 +35,8 @@ pub fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
         DkkUiState::WalletView => {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Escape) {
-                    //app.state = DkkUiState::Init;
                     app.working_account_id = None;
-                    // app.wallet = None;
+                    app.available_wallets = get_all_wallets_locations();
                 }
             });
         }

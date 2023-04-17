@@ -42,7 +42,7 @@ impl Dkk {
             pin: String::new(),
             wallet: None,
             state: DkkUiState::Init,
-            available_wallets: vec![],
+            available_wallets: storage::get_all_wallets_locations(),
             working_alias: String::new(),
             working_account_id: None,
             working_transaction: None,
