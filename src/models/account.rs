@@ -21,8 +21,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<Self> {
-        let id: u32;
+    pub async fn upsert(&self, pool: &Pool<MySql>) -> DkkResult<()> {
         let acc_type = sqlx::query!(
             "SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?",
             self.acc_type.as_str()
@@ -41,9 +40,8 @@ impl Account {
             )
             .execute(&mut pool.acquire().await?)
             .await?;
-            id = self.id.unwrap();
         } else {
-            let result = sqlx::query!(
+            sqlx::query!(
                 r#"INSERT INTO ACCOUNT (wallet_id, name, type_id) VALUES (?, ?, ?)"#,
                 self.wallet_id,
                 self.name,
@@ -51,35 +49,8 @@ impl Account {
             )
             .execute(&mut pool.acquire().await?)
             .await?;
-            id = result.last_insert_id() as u32;
         }
-        Self::get(id, pool).await
-    }
-
-    pub async fn get(id: u32, pool: &Pool<MySql>) -> DkkResult<Self> {
-        let account_row = sqlx::query!(
-            r#"
-            SELECT 
-            a.id as "id?", name, wallet_id, created_date as "created_date?", updated_date as "updated_date?", lu.value as "acc_type: AccountType"
-            FROM ACCOUNT a 
-            JOIN LU_ACCOUNT_TYPE lu 
-            ON a.type_id = lu.id
-            WHERE a.id = ?"#,
-            id
-        )
-        .fetch_one(&mut pool.acquire().await?)
-        .await
-        .map_err(DkkError::Database)?;
-
-        Ok(Account {
-            id: account_row.id,
-            created_date: account_row.created_date,
-            updated_date: account_row.updated_date,
-            wallet_id: account_row.wallet_id,
-            name: account_row.name.clone(),
-            acc_type: account_row.acc_type,
-            transactions: vec![],
-        })
+        Ok(())
     }
 }
 
