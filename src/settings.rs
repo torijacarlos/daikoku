@@ -1,4 +1,5 @@
 use config::{Config, ConfigError};
+use secrecy::{Secret, ExposeSecret};
 use serde::Deserialize;
 use sqlx::{mysql::MySqlConnectOptions, ConnectOptions, MySqlConnection};
 
@@ -12,7 +13,7 @@ struct DatabaseSettings {
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: Secret<String>,
     name: String,
 }
 
@@ -27,14 +28,14 @@ impl Settings {
             )
             .build()?;
 
-        Ok(settings.try_deserialize::<Self>()?)
+        settings.try_deserialize::<Self>()
     }
 
     pub async fn get_db_conn(&self) -> Result<MySqlConnection, sqlx::Error> {
         MySqlConnectOptions::new()
             .host(&self.database.host)
             .username(&self.database.user)
-            .password(&self.database.pass)
+            .password(self.database.pass.expose_secret())
             .port(self.database.port)
             .database(&self.database.name)
             .connect()
