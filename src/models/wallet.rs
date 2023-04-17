@@ -12,6 +12,7 @@ pub struct Wallet {
     pub id: u32,
     pub created_date: DateTime<Utc>,
     pub updated_date: DateTime<Utc>,
+    // @todo:remove-hash-map: transactions should just be a vec within the Account struct
     pub accounts: HashMap<Account, Vec<Transaction>>,
 }
 

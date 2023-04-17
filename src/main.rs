@@ -20,14 +20,16 @@ use crate::models::Wallet;
 use crate::settings::Settings;
 
 enum DkkState {
-    // @todo:init-state: There needs to be an initial state, perhaps to select a wallet or,
-    // eventually, to perform a login operation Login/SelectWallet,
     Init,
     Wallet,
     CreateAccount,
     CreateTransaction,
+    // @todo:edit-records: this is kind of related to the remove-structs todo since we could reuse
+    // the DkkThreadData for each instead of creating new structs 
 }
 
+// @todo:remove-structs: perhaps we could use the main structs setting some optional values
+// The `Struct::create` functions would receive the structs instead of individual values
 #[derive(Default, Clone)]
 struct CreateAccount {
     wallet_id: u32,
@@ -35,6 +37,7 @@ struct CreateAccount {
     acc_type: AccountType,
 }
 
+// @todo:remove-structs
 #[derive(Default, Clone)]
 struct CreateTransaction {
     amount_str: String,
@@ -44,6 +47,7 @@ struct CreateTransaction {
 
 struct Dkk {
     wallet: DkkThreadData<Wallet>,
+
     available_wallets: DkkThreadData<Vec<u32>>,
     selected_wallet: Option<u32>,
 
