@@ -6,17 +6,7 @@ use aes_gcm::{
     Nonce, // Or `Aes128Gcm`
 };
 
-use crate::{alias::DkkResult, error::DkkError, models::Wallet, ui::DkkUiState, Dkk};
-
-pub fn load(app: &mut Dkk) {
-    if let DkkUiState::Init = app.state {
-        app.available_wallets = get_all_wallets_locations();
-    } else {
-        // autosave
-        let wallet = &app.wallet.clone().unwrap();
-        export(wallet, &app.pin, &app.crypt_key);
-    }
-}
+use crate::{alias::DkkResult, error::DkkError, models::Wallet};
 
 fn left_pad(pin: &String, len: usize) -> String {
     if pin.len() < len {

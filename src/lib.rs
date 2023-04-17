@@ -28,7 +28,7 @@ pub struct Dkk {
     pub working_account_id: Option<Uuid>,
     pub working_transaction_id: Option<Uuid>,
 
-    pub force_reload: bool,
+    pub autosave: bool,
     pub fps: f32,
     pub frame: u128,
     pub frame_time: Instant,
@@ -47,7 +47,7 @@ impl Dkk {
             working_account_id: None,
             working_transaction_id: None,
             crypt_key: settings.crypt_key,
-            force_reload: false,
+            autosave: false,
             fps: 0.0,
             frame: 0,
             frame_time: Instant::now(),
@@ -70,7 +70,12 @@ impl eframe::App for Dkk {
             );
             handle_input(gui, self);
         });
-        storage::load(self);
+        if self.autosave {
+            self.autosave = false;
+            if let Some(wallet) = &self.wallet.clone() {
+                storage::export(wallet, &self.pin, &self.crypt_key);
+            }
+        }
         update_fps(self);
         ctx.request_repaint();
     }
@@ -83,6 +88,6 @@ fn update_fps(app: &mut Dkk) {
         app.fps = app.frame as f32 / (seconds as f32);
         app.frame = 0;
         app.frame_time = Instant::now();
-        app.force_reload = true;
+        app.autosave = true;
     }
 }
