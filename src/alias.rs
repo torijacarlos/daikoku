@@ -15,7 +15,7 @@ impl<T> DaikokuThreadData<T> {
     pub fn empty() -> Self {
         Self(Arc::new(Mutex::new(None)))
     }
-    
+
     pub fn clone(&self) -> Arc<Mutex<Option<T>>> {
         self.0.clone()
     }

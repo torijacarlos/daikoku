@@ -11,9 +11,7 @@ use alias::{DaikokuResult, DaikokuThreadData};
 use eframe::egui;
 use egui::RichText;
 use error::DaikokuError;
-use models::{
-    get_account_transactions, get_accounts_net_worth, get_wallet_accounts, Account, Transaction,
-};
+use models::{get_account_transactions, get_wallet_accounts, Account, Transaction};
 use sqlx::{MySql, Pool};
 
 use crate::models::Wallet;
@@ -133,12 +131,12 @@ impl eframe::App for Daikoku {
 
             // load data
             let wallet_id = 1;
-            load_wallet(&self, wallet_id);
-            load_accounts(&self, wallet_id);
+            load_wallet(self, wallet_id);
+            load_accounts(self, wallet_id);
             self.accounts.get(|accounts| {
                 if let Some(accounts) = accounts {
                     for acc in accounts {
-                        load_transactions(&self, acc.id);
+                        load_transactions(self, acc.id);
                     }
                 }
             });
@@ -208,7 +206,7 @@ impl eframe::App for Daikoku {
                 // see fps
                 let sec_marker = self.start_time.elapsed().as_secs_f32() % 1.0;
                 if sec_marker > 0.985 {
-                    self.fps = self.frame.clone();
+                    self.fps = self.frame;
                     self.frame = 0;
                     clear_data(self);
                 }
