@@ -35,15 +35,13 @@ impl Settings {
             .map_err(DaikokuError::ConfigError)
     }
 
-    pub async fn get_db_conn_pool(&self) -> DaikokuResult<Pool<MySql>> {
+    pub fn get_db_conn_pool(&self) -> Pool<MySql> {
         let options = MySqlConnectOptions::new()
             .host(&self.database.host)
             .username(&self.database.user)
             .password(self.database.pass.expose_secret())
             .port(self.database.port)
             .database(&self.database.name);
-        MySqlPool::connect_with(options)
-            .await
-            .map_err(DaikokuError::DatabaseError)
+        MySqlPool::connect_lazy_with(options)
     }
 }

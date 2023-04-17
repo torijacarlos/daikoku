@@ -16,20 +16,13 @@ impl<T> DaikokuThreadData<T> {
         self.0.clone()
     }
 
-    pub fn get(&self, mut v: impl FnMut(&T)) {
-        if let Ok(wallet_guard) = self.0.lock() {
-            if let Some(ref w) = &*wallet_guard {
-                v(w)
-            };
-        }
-    }
-
-    pub fn get_option(&self, mut v: impl FnMut(Option<&T>)) {
-        if let Ok(wallet_guard) = self.0.lock() {
+    pub fn get(&self, mut v: impl FnMut(Option<&T>)) {
+        let self_ref = self.0.clone();
+        if let Ok(wallet_guard) = self_ref.lock() {
             match &*wallet_guard {
                 Some(w) => v(Some(w)),
                 _ => v(None),
             };
-        }
+        };
     }
 }
