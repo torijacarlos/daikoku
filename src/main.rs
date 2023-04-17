@@ -1,11 +1,15 @@
+mod alias;
+mod error;
 mod models;
 mod settings;
+
+use alias::DaikokuResult;
 
 use crate::models::{Account, AccountType, Transaction, TransactionType, Wallet};
 use crate::settings::Settings;
 
 #[tokio::main]
-async fn main() -> Result<(), sqlx::Error> {
+async fn main() -> DaikokuResult<()> {
     let settings = Settings::load().unwrap();
     let mut pool = settings.get_db_conn_pool().await?;
 

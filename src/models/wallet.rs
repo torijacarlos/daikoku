@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
+use crate::{alias::DaikokuResult, error::DaikokuError};
+
 use super::{Account, AccountType};
 
 #[derive(Debug)]
@@ -11,7 +13,7 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    pub async fn create(pool: &mut Pool<MySql>) -> Result<Self, sqlx::Error> {
+    pub async fn create(pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
         let result = sqlx::query!(r#"INSERT INTO WALLET () VALUES ()"#)
             .execute(&mut pool.acquire().await?)
             .await?;
@@ -19,7 +21,7 @@ impl Wallet {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> Result<Self, sqlx::Error> {
+    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
         sqlx::query_as!(
             Self,
             r#"SELECT id, created_date, updated_date FROM WALLET WHERE id = ?"#,
@@ -27,9 +29,10 @@ impl Wallet {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
+        .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn get_accounts(&self, pool: &mut Pool<MySql>) -> Result<Vec<Account>, sqlx::Error> {
+    pub async fn get_accounts(&self, pool: &mut Pool<MySql>) -> DaikokuResult<Vec<Account>> {
         sqlx::query_as!(
             Account,
             r#"SELECT  
@@ -42,9 +45,10 @@ impl Wallet {
         )
         .fetch_all(&mut pool.acquire().await?)
         .await
+        .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn net_worth(&self, pool: &mut Pool<MySql>) -> Result<f32, sqlx::Error> {
+    pub async fn net_worth(&self, pool: &mut Pool<MySql>) -> DaikokuResult<f32> {
         let mut total = 0.0;
         for acc in self.get_accounts(pool).await? {
             total += &acc.balance(pool).await?;

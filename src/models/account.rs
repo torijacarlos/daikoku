@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use sqlx::{MySql, Pool};
 
+use crate::{alias::DaikokuResult, error::DaikokuError};
+
 use super::{AccountType, Transaction, TransactionType};
 use num_traits::cast::ToPrimitive;
 
@@ -20,7 +22,7 @@ impl Account {
         name: String,
         acc_type: AccountType,
         pool: &mut Pool<MySql>,
-    ) -> Result<Self, sqlx::Error> {
+    ) -> DaikokuResult<Self> {
         let result = sqlx::query!(
             r#"SELECT id FROM LU_ACCOUNT_TYPE WHERE value = ?"#,
             acc_type.as_str()
@@ -39,7 +41,7 @@ impl Account {
         Self::get(result.last_insert_id() as u32, pool).await
     }
 
-    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> Result<Self, sqlx::Error> {
+    pub async fn get(id: u32, pool: &mut Pool<MySql>) -> DaikokuResult<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -53,9 +55,10 @@ impl Account {
         )
         .fetch_one(&mut pool.acquire().await?)
         .await
+        .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn save(&self, pool: &mut Pool<MySql>) -> Result<(), sqlx::Error> {
+    pub async fn save(&self, pool: &mut Pool<MySql>) -> DaikokuResult<()> {
         let acc_type = sqlx::query!(
             "select id from LU_ACCOUNT_TYPE where value=?",
             self.acc_type.as_str()
@@ -81,7 +84,7 @@ impl Account {
     pub async fn get_transactions(
         &self,
         pool: &mut Pool<MySql>,
-    ) -> Result<Vec<Transaction>, sqlx::Error> {
+    ) -> DaikokuResult<Vec<Transaction>> {
         sqlx::query_as!(
             Transaction,
             r#"SELECT  
@@ -94,9 +97,10 @@ impl Account {
         )
         .fetch_all(&mut pool.acquire().await?)
         .await
+        .map_err(DaikokuError::DatabaseError)
     }
 
-    pub async fn balance(&self, pool: &mut Pool<MySql>) -> Result<f32, sqlx::Error> {
+    pub async fn balance(&self, pool: &mut Pool<MySql>) -> DaikokuResult<f32> {
         let mut total: f32 = 0.0;
         let multiplier = match &self.acc_type {
             AccountType::Asset | AccountType::Expense => 1.0,
