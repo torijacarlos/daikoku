@@ -24,11 +24,7 @@ enum DkkState {
 
     // @todo:wallet-state: Keep the wallet struct within this enum?
     Wallet,
-    CreateTransaction {
-        account_id: u32,
-        amount_str: String,
-        trx_type: TransactionType,
-    },
+    CreateTransaction,
 }
 
 struct Dkk {
@@ -40,6 +36,9 @@ struct Dkk {
     frame: u128,
     frame_time: Instant,
     state: DkkState,
+    amount_str: String,
+    trx_type: TransactionType,
+    account_id: u32,
 }
 
 impl Dkk {
@@ -53,6 +52,9 @@ impl Dkk {
             frame: 0,
             state: DkkState::Wallet,
             frame_time: Instant::now(),
+            amount_str: String::new(),
+            trx_type: TransactionType::Debit,
+            account_id: 0,
         }
     }
 }
@@ -104,18 +106,8 @@ impl eframe::App for Dkk {
 
             // render state/scene
             match self.state {
-                DkkState::Wallet => {
-                    self.wallet.get(|wallet: Option<&Wallet>| {
-                        if let Some(wallet) = wallet {
-                            render_wallet(ui, wallet);
-                        }
-                    });
-                }
-                DkkState::CreateTransaction {
-                    ref mut amount_str,
-                    ref mut trx_type,
-                    ref account_id,
-                } => render_create_transaction(ui, amount_str, trx_type, account_id),
+                DkkState::Wallet => render_wallet(ui, self),
+                DkkState::CreateTransaction => render_create_transaction(ui, self),
             };
 
             // handle input
@@ -137,102 +129,89 @@ impl eframe::App for Dkk {
     }
 }
 
-fn render_create_transaction(
-    ui: &mut egui::Ui,
-    amount_str: &mut String,
-    trx_type: &mut TransactionType,
-    account_id: &u32,
-) {
+fn render_create_transaction(ui: &mut egui::Ui, app: &mut Dkk) {
     ui.group(|ui| {
-        ui.label(format!("Creating Transaction for account: {account_id}"));
+        ui.label(format!("Creating Transaction for account: {}", app.account_id));
     });
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
             let label = ui.label("Amount: ".to_string());
-            let prev_value = amount_str.clone();
-            ui.text_edit_singleline(amount_str).labelled_by(label.id);
-            if amount_str.parse::<f32>().is_err() {
-                *amount_str = prev_value;
+            let prev_value = app.amount_str.clone();
+            ui.text_edit_singleline(&mut app.amount_str)
+                .labelled_by(label.id);
+            if app.amount_str.parse::<f32>().is_err() {
+                app.amount_str = prev_value;
             }
         });
         ui.horizontal(|ui| {
             let label = ui.label("Type: ".to_string());
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", trx_type))
+                .selected_text(format!("{:?}", app.trx_type))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(trx_type, TransactionType::Debit, "Debit");
-                    ui.selectable_value(trx_type, TransactionType::Credit, "Credit");
+                    ui.selectable_value(&mut app.trx_type, TransactionType::Debit, "Debit");
+                    ui.selectable_value(&mut app.trx_type, TransactionType::Credit, "Credit");
                 })
                 .response
                 .labelled_by(label.id);
         });
         ui.horizontal(|ui| {
-            // @todo:only-render-button: Perhaps an array of buttons within the Dkk Struct?
-            // and that array gets passed to the handle_input
-            // How do we identify each button to know which action to take? maybe a HashMap
-            // instead?
-            let _button = ui.button("Create");
+            if ui.button("Create").clicked() {
+                app.state = DkkState::Wallet;
+            }
         });
     });
 }
 
-fn render_wallet(ui: &mut egui::Ui, wallet: &Wallet) {
-    ui.group(|ui| {
-        ui.vertical(|ui| {
-            ui.label(RichText::new("Wallet information").strong());
+fn render_wallet(ui: &mut egui::Ui, app: &mut Dkk) {
+    app.wallet.get(|wallet: Option<&Wallet>| {
+        if let Some(wallet) = wallet {
             ui.vertical(|ui| {
-                ui.group(|ui| {
-                    ui.label(format!("Id: {}", wallet.id));
-                    ui.label(format!("Created date: {:?}", wallet.created_date));
-                    ui.label(format!(
-                        "Net Worth: {:?}",
-                        get_accounts_net_worth(&wallet.accounts)
-                    ));
-                });
+                ui.label(RichText::new("Wallet information").strong());
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Accounts").strong());
-                    let mut accounts: Vec<&Account> = wallet.accounts.keys().collect();
-                    accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+                    ui.group(|ui| {
+                        ui.label(format!("Id: {}", wallet.id));
+                        ui.label(format!("Created date: {:?}", wallet.created_date));
+                        ui.label(format!(
+                            "Net Worth: {:?}",
+                            get_accounts_net_worth(&wallet.accounts)
+                        ));
+                    });
+                    ui.vertical(|ui| {
+                        let mut accounts: Vec<&Account> = wallet.accounts.keys().collect();
+                        accounts.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
 
-                    for acc in accounts {
-                        ui.group(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(format!("Account Id: {}", acc.id));
-                                ui.label(format!("Account type: {:?}", acc.acc_type));
-                                ui.label(format!("Account Created date: {:?}", acc.created_date));
-                                if let Some(transactions) = wallet.accounts.get(acc) {
-                                    for t in transactions {
+                        ui.label(RichText::new("Accounts").strong());
+                        for acc in accounts {
+                            ui.group(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.label(format!("Account Id: {}", acc.id));
+                                    ui.label(format!("Account type: {:?}", acc.acc_type));
+                                    ui.label(format!(
+                                        "Account Created date: {:?}",
+                                        acc.created_date
+                                    ));
+                                    if let Some(transactions) = wallet.accounts.get(acc) {
+                                        for t in transactions {
+                                            ui.group(|ui| {
+                                                ui.label(format!("Transaction id: {}", t.id));
+                                                ui.label(format!("Amount: {:?}", t.amount));
+                                                ui.label(format!("Trx Type: {:?}", t.trx_type));
+                                            });
+                                        }
                                         ui.group(|ui| {
-                                            ui.label(format!("Transaction id: {}", t.id));
-                                            ui.label(format!("Amount: {:?}", t.amount));
-                                            ui.label(format!("Trx Type: {:?}", t.trx_type));
+                                            if ui.button("Create transaction").clicked() {
+                                                app.state = DkkState::CreateTransaction;
+                                            }
                                         });
                                     }
-                                    ui.group(|ui| {
-                                        let _button = ui.button("Create transaction");
-                                        // @todo:only-render-button: render functions should not alter state.
-                                        // how to keep button handle to manage it within
-                                        // the handle_input fn
-
-                                        // where will this be executed?
-
-                                        //if button.clicked() {
-                                        //    ui.label("Creating transaction");
-                                        //    app.state = DkkState::CreateTransaction {
-                                        //        account_id: acc.id,
-                                        //        amount_str: String::new(),
-                                        //        trx_type: TransactionType::Debit,
-                                        //    }
-                                        //}
-                                    });
-                                }
+                                });
                             });
-                        });
-                    }
+                        }
+                    });
                 });
             });
-        });
+        }
     });
 }
 
@@ -241,6 +220,7 @@ fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
         ui.input(|input| {
             if input.key_pressed(egui::Key::Escape) {
                 app.state = DkkState::Wallet;
+                println!("Esc pressed");
             }
         });
     };
