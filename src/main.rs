@@ -11,8 +11,8 @@ use eframe::egui;
 use egui::RichText;
 use error::DkkError;
 use models::{
-    get_account_balance, get_account_transactions, get_accounts_net_worth, get_wallet_accounts,
-    Account, AccountType, Transaction, TransactionType,
+    get_account_balance, get_account_transactions, get_accounts_net_worth, get_all_wallet_ids,
+    get_wallet_accounts, Account, AccountType, Transaction, TransactionType,
 };
 use sqlx::{MySql, Pool};
 
@@ -22,6 +22,7 @@ use crate::settings::Settings;
 enum DkkState {
     // @todo:init-state: There needs to be an initial state, perhaps to select a wallet or,
     // eventually, to perform a login operation Login/SelectWallet,
+    Init,
     Wallet,
     CreateAccount,
     CreateTransaction,
@@ -43,6 +44,8 @@ struct CreateTransaction {
 
 struct Dkk {
     wallet: DkkThreadData<Wallet>,
+    available_wallets: DkkThreadData<Vec<u32>>,
+    selected_wallet: Option<u32>,
 
     create_account: CreateAccount,
     create_transaction: CreateTransaction,
@@ -59,6 +62,9 @@ impl Dkk {
     fn new() -> Self {
         let settings = Settings::load().unwrap();
         Self {
+            state: DkkState::Init,
+            available_wallets: DkkThreadData::empty(),
+            selected_wallet: None,
             wallet: DkkThreadData::empty(),
             create_account: CreateAccount::default(),
             create_transaction: CreateTransaction::default(),
@@ -66,10 +72,22 @@ impl Dkk {
             force_reload: false,
             fps: 0.0,
             frame: 0,
-            state: DkkState::Wallet,
             frame_time: Instant::now(),
         }
     }
+}
+
+fn load_available_wallets(app: &mut Dkk) {
+    let av_wallets_ref = app.available_wallets.clone();
+    let pool_ref = app.pool.clone();
+
+    tokio::spawn(async move {
+        let wallets = get_all_wallet_ids(&pool_ref).await.ok();
+
+        if let Ok(mut guard) = av_wallets_ref.lock() {
+            *guard = wallets;
+        }
+    });
 }
 
 fn load_wallet(app: &mut Dkk, wallet_id: u32) {
@@ -121,8 +139,12 @@ impl eframe::App for Dkk {
             handle_input(ui, self);
         });
 
-        let wallet_id = 1;
-        load_wallet(self, wallet_id);
+        if let DkkState::Init = self.state {
+            load_available_wallets(self);
+        }
+        if let Some(wallet_id) = self.selected_wallet {
+            load_wallet(self, wallet_id);
+        }
         update_fps(self);
         ctx.request_repaint();
     }
@@ -141,10 +163,42 @@ fn update_fps(app: &mut Dkk) {
 
 fn render(ui: &mut egui::Ui, app: &mut Dkk) {
     match app.state {
+        DkkState::Init => render_init(ui, app),
         DkkState::Wallet => render_wallet(ui, app),
         DkkState::CreateAccount => render_create_account(ui, app),
         DkkState::CreateTransaction => render_create_transaction(ui, app),
     };
+}
+
+fn render_init(ui: &mut egui::Ui, app: &mut Dkk) {
+    ui.group(|ui| {
+        ui.label("Select or create a wallet");
+        ui.vertical(|ui| {
+            app.available_wallets.get(|aw| {
+                if let Some(aw) = aw {
+                    for wallet_id in aw {
+                        if ui.button(format!("{wallet_id}")).clicked() {
+                            app.selected_wallet = Some(*wallet_id);
+                            app.state = DkkState::Wallet;
+                        }
+                    }
+                }
+            });
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Create").clicked() {
+                let pool_ref = app.pool.clone();
+                tokio::spawn(async move {
+                    match Wallet::create(&pool_ref).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            todo!("unhandled error: {:?}", e)
+                        }
+                    }
+                });
+            }
+        });
+    });
 }
 
 fn render_create_account(ui: &mut egui::Ui, app: &mut Dkk) {
@@ -360,6 +414,18 @@ fn handle_input(ui: &egui::Ui, app: &mut Dkk) {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Escape) {
                     app.state = DkkState::Wallet;
+                }
+            });
+        }
+        DkkState::Wallet => {
+            ui.input(|input| {
+                if input.key_pressed(egui::Key::Escape) {
+                    app.state = DkkState::Init;
+                    app.selected_wallet = None;
+                    let wallet_ref = app.wallet.clone();
+                    if let Ok(mut guard) = wallet_ref.lock() {
+                        *guard = None;
+                    };
                 }
             });
         }

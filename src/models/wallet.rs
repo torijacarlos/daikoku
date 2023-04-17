@@ -43,6 +43,14 @@ impl Wallet {
     }
 }
 
+pub async fn get_all_wallet_ids(pool: &Pool<MySql>) -> DkkResult<Vec<u32>> {
+    sqlx::query!(r#"SELECT id FROM WALLET"#)
+        .fetch_all(&mut pool.acquire().await?)
+        .await
+        .map(|res| res.iter().map(|v| v.id).collect())
+        .map_err(DkkError::Database)
+}
+
 pub async fn get_wallet_accounts(wallet_id: u32, pool: &Pool<MySql>) -> DkkResult<Vec<Account>> {
     sqlx::query_as!(
         Account,
