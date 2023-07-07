@@ -9,7 +9,7 @@ use crate::{
     settings::Settings,
     storage::{import, left_pad},
 };
-use std::io;
+use std::{char, io};
 
 enum State {
     Start,
@@ -105,11 +105,11 @@ fn main() {
                 }
             }
             State::Wallet(ref wallet) => {
-                println!("Id: {:#?} | Alias {}", wallet.id, wallet.alias);
+                println!("Id: {:#?} | Alias: {}", wallet.id, wallet.alias);
                 println!(
                     "Liq. Index: {} | Net Worth {}",
                     get_wallet_liquidity_index(&wallet.accounts),
-                    get_accounts_net_worth(&wallet.accounts)
+                    format_money(get_accounts_net_worth(&wallet.accounts))
                 );
                 println!(
                     "Created: {:?} | Updated {}",
@@ -134,12 +134,12 @@ fn main() {
                     } else {
                         acc.acc_type.as_str().to_string().len()
                     };
-                    field_width[3] = if field_width[3] > get_account_balance(&acc).to_string().len()
-                    {
-                        field_width[3]
-                    } else {
-                        get_account_balance(&acc).to_string().len()
-                    };
+                    field_width[3] =
+                        if field_width[3] > format_money(get_account_balance(acc)).len() {
+                            field_width[3]
+                        } else {
+                            format_money(get_account_balance(acc)).len()
+                        };
                     field_width[4] =
                         if field_width[4] > acc.created_date.date_naive().to_string().len() {
                             field_width[4]
@@ -177,12 +177,13 @@ fn main() {
                         left_pad(&acc.id.unwrap().to_string(), field_width[0]),
                         left_pad(&acc.name, field_width[1]),
                         left_pad(&acc.acc_type.as_str().to_string(), field_width[2]),
-                        left_pad(&get_account_balance(&acc).to_string(), field_width[3]),
+                        left_pad(&format_money(get_account_balance(acc)), field_width[3]),
                         left_pad(&acc.created_date.date_naive().to_string(), field_width[4]),
                         left_pad(&acc.updated_date.date_naive().to_string(), field_width[5])
                     );
                 }
                 render_line(total_width);
+                println!();
                 match io::stdin().read_line(&mut buffer) {
                     Ok(_) => {}
                     Err(_) => {}
@@ -192,13 +193,44 @@ fn main() {
     }
 }
 
+fn format_money(amount: f32) -> String {
+    let amnt_str = amount.to_string();
+    let money_and_cents: Vec<&str> = amnt_str.split('.').collect();
+
+    let mut whole: Vec<&str> = money_and_cents[0].split("").collect();
+    whole.rotate_left(1);
+    whole.pop();
+    whole.pop();
+
+    let mut whole_str = String::new();
+    for w in whole.rchunks(3) {
+        whole_str = ",".to_string() + &w.join("") + &whole_str;
+    }
+    if whole_str.starts_with(',') {
+        let mut whole: Vec<&str> = whole_str.split("").collect();
+        whole.rotate_left(2);
+        whole.pop();
+        whole.pop();
+        whole.pop();
+        whole_str = whole.join("");
+    }
+
+    whole_str
+        + "."
+        + if money_and_cents.len() == 2 {
+            money_and_cents[1]
+        } else {
+            "00"
+        }
+}
+
 fn render_line(width: usize) {
     println!("{}", (0..width).map(|_| "-").collect::<String>());
 }
 
 fn print_cmd_available(error: String) {
     print!("{}[2J", 27 as char);
-    if error.len() > 0 {
+    if !error.is_empty() {
         println!("There was an error");
         println!("\x1B[31m ");
         println!("  {}", error);
