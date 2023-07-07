@@ -8,7 +8,7 @@ use aes_gcm::{
 
 use crate::{alias::DkkResult, error::DkkError, models::Wallet};
 
-fn left_pad(pin: &String, len: usize) -> String {
+pub fn left_pad(pin: &String, len: usize) -> String {
     if pin.len() < len {
         let mut pad = (0..(len - pin.len())).map(|_| " ").collect::<String>();
         pad.push_str(pin);
